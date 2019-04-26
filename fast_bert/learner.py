@@ -2,7 +2,7 @@ import os
 from .data import BertDataBunch, InputExample, InputFeatures
 from .modeling import BertForMultiLabelSequenceClassification
 from torch.optim.lr_scheduler import _LRScheduler, Optimizer
-from pytorch_pretrained_bert.optimization import BertAdam
+from pytorch_pretrained_bert.optimization import BertAdam, ConstantLR, WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithWarmupRestartsSchedule, WarmupCosineWithHardRestartsSchedule
 from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertLayerNorm
 from fastprogress.fastprogress import master_bar, progress_bar
 import torch
@@ -22,6 +22,16 @@ def warmup_linear(x, warmup=0.002):
     if x < warmup:
         return x/warmup
     return 1.0 - x
+
+SCHEDULES = {
+    None:       ConstantLR,
+    "none":     ConstantLR,
+    "warmup_cosine": WarmupCosineSchedule,
+    "warmup_constant": WarmupConstantSchedule,
+    "warmup_linear": WarmupLinearSchedule,
+    "warmup_cosine_warmpup_restarts": WarmupCosineWithWarmupRestartsSchedule,
+    "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
+}
 
 class BertLearner(object):
     data:BertDataBunch
@@ -166,7 +176,8 @@ class BertLearner(object):
         self.layer_groups = split_model(self.model, split_on)
         return self
     
-    def get_optimizer(self, lr, num_train_steps):
+    
+    def get_optimizer(self, lr, num_train_steps, schedule_type='warmup_linear'):
         param_optimizer = list(self.model.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         
@@ -178,6 +189,9 @@ class BertLearner(object):
         t_total = num_train_steps
         if self.multi_gpu == False:
             t_total = t_total // torch.distributed.get_world_size()
+        
+        schedule_class = SCHEDULES[schedule_type]
+        schedule = schedule_class(warmup=self.warmup_proportion, t_total=t_total)
         
         if self.is_fp16:
             try:
@@ -199,10 +213,11 @@ class BertLearner(object):
         else:
             optimizer = BertAdam(optimizer_grouped_parameters,
                                  lr=lr,
+                                 schedule=schedule,
                                  warmup=self.warmup_proportion,
-                                 t_total=-1)
+                                 t_total=t_total)
         
-        return optimizer
+        return optimizer, schedule
     
     def validate(self):
         self.logger.info("Running evaluation")
@@ -298,13 +313,11 @@ class BertLearner(object):
         else:
             self.model = torch.nn.DataParallel(self.model)
      
-    def fit(self, epochs, lr, validate=True):
+    def fit(self, epochs, lr, validate=True, schedule_type="warmup_linear"):
         
         num_train_steps = int(len(self.data.train_dl) / self.grad_accumulation_steps * epochs)
         if self.optimizer is None:
-            self.optimizer = self.get_optimizer(lr , num_train_steps)
-        
-        # scheduler = CyclicLR(self.optimizer, base_lr=lr, max_lr=1e-4, step_size=2500, last_batch_iteration=-1)
+            self.optimizer, self.schedule = self.get_optimizer(lr , num_train_steps)
         
         t_total = num_train_steps
         if self.multi_gpu == False:
@@ -324,7 +337,6 @@ class BertLearner(object):
                 batch = tuple(t.to(self.device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
                 
-                # scheduler.batch_step()
                 if self.is_fp16 and self.multi_label:
                     label_ids = label_ids.half()
                 
@@ -344,10 +356,13 @@ class BertLearner(object):
                 nb_tr_steps += 1
                 
                 if (step + 1) % self.grad_accumulation_steps == 0:
-#                    scheduler.batch_step()
-                    lr_this_step = lr * warmup_linear(global_step/t_total, self.warmup_proportion)
-                    for param_group in self.optimizer.param_groups:
-                       param_group['lr'] = lr_this_step
+                    if self.is_fp16:
+                        # modify learning rate with special warm up BERT uses
+                        # if args.fp16 is False, BertAdam is used that handles this automatically
+                        lr_this_step = lr * self.schedule.get_lr(global_step)
+                    
+                        for param_group in self.optimizer.param_groups:
+                            param_group['lr'] = lr_this_step
                     self.optimizer.step()
                     self.optimizer.zero_grad()
                     global_step += 1

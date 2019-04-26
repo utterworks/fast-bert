@@ -147,7 +147,71 @@ class DataProcessor(object):
         """Gets the list of labels for this data set."""
         raise NotImplementedError()
 
+class NERTextProcessor(DataProcessor):
+    
+    def __init__(self, data_dir, label_dir):
+        self.data_dir = data_dir
+        self.label_dir = label_dir
+        self.labels = None
+    
+    def get_train_examples(self, filename='train.txt'):
+        """Gets a collection of `InputExample`s for the dev set."""
+        return self._create_examples(self.read_col_file(os.path.join(self.data_dir, filename)), "train")
+    
+    def get_dev_examples(self, filename='val.txt', size=-1):
+        """Gets a collection of `InputExample`s for the dev set."""
+        return self._create_examples(self.read_col_file(os.path.join(self.data_dir, filename)), "val")
 
+    def get_test_examples(self, filename='test.txt', size=-1):
+        """Gets a collection of `InputExample`s for the test set."""
+        return self._create_examples(self.read_col_file(os.path.join(self.data_dir, filename)), "test")
+
+    def get_labels(self, filename='labels.csv'):
+        """See base class."""
+        if self.labels == None:
+            self.labels = list(pd.read_csv(os.path.join(
+                self.label_dir, filename), header=None)[0].astype('str').values)
+        return self.labels
+    
+    def _create_examples(self,lines,set_type):
+        examples = []
+        for i,(sentence,label) in enumerate(lines):
+            guid = "%s-%s" % (set_type, i)
+            text_a = ' '.join(sentence)
+            text_b = None
+            label = label
+            examples.append(InputExample(guid=guid,text_a=text_a,text_b=text_b,label=label))
+        return examples
+
+    
+    def read_col_file(self, filename):
+        '''
+        read file
+        return format :
+        [ ['EU', 'B-ORG'], ['rejects', 'O'], ['German', 'B-MISC'], ['call', 'O'], ['to', 'O'], ['boycott', 'O'], 
+        ['British', 'B-MISC'], ['lamb', 'O'], ['.', 'O'] ]
+        '''
+        f = open(filename)
+        data = []
+        sentence = []
+        label= []
+        for line in f:
+            if len(line)==0 or line.startswith('-DOCSTART') or line[0]=="\n":
+                if len(sentence) > 0:
+                    data.append((sentence,label))
+                    sentence = []
+                    label = []
+                continue
+            splits = line.split(' ')
+            sentence.append(splits[0])
+            label.append(splits[-1][:-1])
+
+        if len(sentence) >0:
+            data.append((sentence,label))
+            sentence = []
+            label = []
+        return data
+        
 class TextProcessor(DataProcessor):
 
     def __init__(self, data_dir, label_dir):
@@ -308,7 +372,10 @@ class BertDataBunch(object):
             if multi_gpu:
                 train_sampler = RandomSampler(train_data)
             else:
-                torch.distributed.init_process_group(backend='nccl')
+                torch.distributed.init_process_group(backend="nccl", 
+                                     init_method = "tcp://localhost:23459", 
+                                     rank=0, world_size=1)
+                #torch.distributed.init_process_group(backend='nccl')
                 train_sampler = DistributedSampler(train_data)
             self.train_dl = DataLoader(
                 train_data, sampler=train_sampler, batch_size=bs)
