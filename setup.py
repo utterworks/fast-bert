@@ -2,7 +2,7 @@ from io import open
 from setuptools import setup, find_packages
 
 setup(name='fast_bert',
-      version='0.1',
+      version='0.1.1',
       description='AI Library using BERT',
       author='Kaushal Trivedi',
       long_description=open("README.md", "r", encoding='utf-8').read(),
