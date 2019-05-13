@@ -1,0 +1,1 @@
+python ./apex/setup.py install --cuda_ext --cpp_ext
