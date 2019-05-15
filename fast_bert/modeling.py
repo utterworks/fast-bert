@@ -44,7 +44,8 @@ class BertForMultiLabelSequenceClassification(BertForSequenceClassification):
     """
 
     def __init__(self, config, num_labels=2):
-        super(BertForMultiLabelSequenceClassification, self).__init__(config)
+        super(BertForMultiLabelSequenceClassification,
+              self).__init__(config, num_labels)
         self.num_labels = num_labels
         self.bert = BertModel(config)
         self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
