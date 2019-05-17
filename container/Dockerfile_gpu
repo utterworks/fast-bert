@@ -66,7 +66,7 @@ RUN pip --no-cache-dir install \
 RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 
 RUN pip install pytorch-pretrained-bert
-RUN pip --no-cache-dir install git+https://e791691795db788356f2d576c50aa90829425c7e@github.com/kaushaltrivedi/fast-bert.git --upgrade
+RUN pip --no-cache-dir install fast-bert --upgrade
 
 
 
