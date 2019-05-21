@@ -1,5 +1,7 @@
+import logger
 import pandas as pd
 import os
+import random
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 import torch
 from pathlib import Path
