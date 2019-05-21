@@ -67,7 +67,7 @@ class BertLearner(object):
         model.to(device)
         
         if device.type == 'cuda':
-            if multi_gpu == False:
+            if multi_gpu:
                 try:
                     from apex.parallel import DistributedDataParallel as DDP
                 except ImportError:
@@ -303,7 +303,7 @@ class BertLearner(object):
         torch.cuda.empty_cache() 
         self.model.to(self.device)
     
-        if self.multi_gpu == False:
+        if self.multi_gpu:
             try:
                 from apex.parallel import DistributedDataParallel as DDP
             except ImportError:
