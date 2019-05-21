@@ -67,7 +67,7 @@ class BertLearner(object):
         model.to(device)
         
         if device.type == 'cuda':
-            if multi_gpu == False:
+            if multi_gpu == True:
                 try:
                     from apex.parallel import DistributedDataParallel as DDP
                 except ImportError:
