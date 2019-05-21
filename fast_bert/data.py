@@ -45,7 +45,7 @@ class InputFeatures(object):
         self.label_id = label_id
 
 
-def _truncate_seq_pair(self, tokens_a, tokens_b, max_length):
+def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     """Truncates a sequence pair in place to the maximum length."""
 
     # This is a simple heuristic which will always truncate the longer sequence
@@ -81,7 +81,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             # Modifies `tokens_a` and `tokens_b` in place so that the total
             # length is less than the specified length.
             # Account for [CLS], [SEP], [SEP] with "- 3"
-            self._truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
+            _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
         else:
             # Account for [CLS] and [SEP] with "- 2"
             if len(tokens_a) > max_seq_length - 2:
