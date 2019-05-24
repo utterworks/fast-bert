@@ -1,6 +1,6 @@
 import numpy as np
 from torch import Tensor
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, hamming_loss, accuracy_score
 import pdb
 
 # def accuracy(out, labels):
@@ -52,3 +52,35 @@ def roc_auc(y_pred: Tensor, y_true: Tensor):
     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
     
     return roc_auc["micro"]
+
+def Hamming_loss(y_pred:Tensor, y_true:Tensor, sigmoid:bool = True, thresh:float = threshold, sample_weight = None):
+    if sigmoid: y_pred = y_pred.sigmoid()
+    y_pred = (y_pred > thresh).float()
+    return hamming_loss(y_true, y_pred, sample_weight = sample_weight)
+
+def Exact_Match_Ratio(y_pred:Tensor, y_true:Tensor, sigmoid:bool = True, thresh:float = threshold, normalize:bool = True, sample_weight = None):
+    if sigmoid: y_pred = y_pred.sigmoid()
+    y_pred = (y_pred > thresh).float()
+    return accuracy_score(y_true, y_pred, normalize = normalize, sample_weight = sample_weight)
+
+def F1(y_pred:Tensor, y_true:Tensor, threshold:float = threshold):
+    return fbeta(y_pred, y_true, thresh = threshold, beta = 1)
+
+def ROC_AUC_by_label(y_pred: Tensor, y_true: Tensor, sigmoid:bool = True, labels:list = labels):
+    # Compute ROC curve and ROC area for each label
+    if sigmoid: y_pred = y_pred.sigmoid()
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    for i in range(len(labels)):
+        fpr[i], tpr[i], _ = roc_curve(y_true[:, i], y_pred[:, i])
+        roc_auc[labels[i]] = auc(fpr[i], tpr[i])
+    return roc_auc
+
+def accuracy_by_label(y_pred: Tensor, y_true: Tensor, sigmoid:bool = True, thresh:float = threshold, normalize:bool = True, sample_weight = None, labels:list = labels):
+    if sigmoid: y_pred = y_pred.sigmoid()
+    y_pred = (y_pred > thresh).float()
+    accuracies = {}
+    for i in range(len(labels)):
+        accuracies[labels[i]] = accuracy_score(y_true[:, i], y_pred[:, i], normalize = normalize, sample_weight = sample_weight)
+    return accuracies
