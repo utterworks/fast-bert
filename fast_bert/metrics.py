@@ -1,6 +1,6 @@
 import numpy as np
 from torch import Tensor
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, hamming_loss, accuracy_score
 import pdb
 
 # def accuracy(out, labels):
@@ -52,3 +52,16 @@ def roc_auc(y_pred: Tensor, y_true: Tensor):
     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
     
     return roc_auc["micro"]
+
+def Hamming_loss(y_pred:Tensor, y_true:Tensor, sigmoid:bool = True, thresh:float = threshold, sample_weight = None):
+    if sigmoid: y_pred = y_pred.sigmoid()
+    y_pred = (y_pred > thresh).float()
+    return hamming_loss(y_true, y_pred, sample_weight = sample_weight)
+
+def Exact_Match_Ratio(y_pred:Tensor, y_true:Tensor, sigmoid:bool = True, thresh:float = threshold, normalize:bool = True, sample_weight = None):
+    if sigmoid: y_pred = y_pred.sigmoid()
+    y_pred = (y_pred > thresh).float()
+    return accuracy_score(y_true, y_pred, normalize = normalize, sample_weight = sample_weight)
+
+def F1(y_pred:Tensor, y_true:Tensor, threshold:float = threshold):
+    return fbeta(y_pred, y_true, thresh = threshold, beta = 1)
