@@ -12,12 +12,6 @@ def accuracy(y_pred:Tensor, y_true:Tensor):
     outputs = np.argmax(y_pred, axis=1)
     return np.mean(outputs.numpy() == y_true.detach().cpu().numpy())
 
-def accuracy_multilabel(y_pred:Tensor, y_true:Tensor, sigmoid:bool=True):
-    if sigmoid: y_pred = y_pred.sigmoid()
-    outputs = np.argmax(y_pred, axis=1)
-    real_vals = np.argmax(y_true, axis=1)
-    return np.mean(outputs.numpy() == real_vals.numpy())
-
 def accuracy_thresh(y_pred:Tensor, y_true:Tensor, thresh:float=0.5, sigmoid:bool=True):
     "Compute accuracy when `y_pred` and `y_true` are the same size."
     if sigmoid: y_pred = y_pred.sigmoid()
