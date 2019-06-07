@@ -93,7 +93,7 @@ class ScoringService(object):
             if x.is_file():
                 file_list.append(str(x))
             else:
-                file_list.append(searching_all_files(x))
+                file_list.append(cls.searching_all_files(x))
 
         return file_list
 
@@ -139,4 +139,3 @@ def transformation():
     result = json.dumps(predictions[:10])
 
     return flask.Response(response=result, status=200, mimetype='application/json')
-
