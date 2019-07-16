@@ -328,7 +328,7 @@ class BertDataBunch(object):
 
     def __init__(self, data_dir, label_dir, tokenizer, train_file='train.csv', val_file='val.csv', test_data=None,
                  label_file='labels.csv', text_col='text', label_col='label', bs=32, maxlen=512,
-                 multi_gpu=True, multi_label=False):
+                 multi_gpu=True, multi_label=False, backend="nccl"):
 
         self.data_dir = data_dir
         self.tokenizer = tokenizer
@@ -372,7 +372,7 @@ class BertDataBunch(object):
             if multi_gpu:
                 train_sampler = RandomSampler(train_data)
             else:
-                torch.distributed.init_process_group(backend="nccl", 
+                torch.distributed.init_process_group(backend=backend, 
                                      init_method = "tcp://localhost:23459", 
                                      rank=0, world_size=1)
                 #torch.distributed.init_process_group(backend='nccl')
