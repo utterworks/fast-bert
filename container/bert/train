@@ -108,10 +108,16 @@ def train():
                                          init_method = "tcp://localhost:23459", 
                                          rank=0, world_size=1)
         
+        if bool(training_config['multi_label']) == True:
+            label_col = json.loads(training_config['label_col'])
+        else:
+            label_col = training_config['label_col']
+        logger.info("label columns: {}".format(label_col))
         # Create databunch 
         databunch = BertDataBunch(training_path, training_path, tokenizer, 
                                   train_file=training_config['train_file'], val_file=training_config['val_file'],
                                   label_file=training_config['label_file'],
+                                  label_col=label_col
                                   bs=int(hyperparameters['train_batch_size']), maxlen=int(hyperparameters['max_seq_length']),                                                       multi_gpu=multi_gpu, multi_label=bool(training_config['multi_label']))
         
         metrics = []
