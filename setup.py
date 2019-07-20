@@ -14,7 +14,7 @@ setup(name='fast_bert',
       packages=find_packages(exclude=["*.tests", "*.tests.*",
                                       "tests.*", "tests"]),
       install_requires=[
-          'pytorch-pretrained-bert>=0.6.2',
+          'pytorch-pretrained-bert==0.6.2',
           'fastai'
       ],
       classifiers=[
