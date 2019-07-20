@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-from pytorch_pretrained_bert.tokenization import BertTokenizer
+from pytorch_transformers import BertTokenizer
 import torch
 from pathlib import Path
 import pickle
@@ -147,17 +147,18 @@ class DataProcessor(object):
         """Gets the list of labels for this data set."""
         raise NotImplementedError()
 
+
 class NERTextProcessor(DataProcessor):
-    
+
     def __init__(self, data_dir, label_dir):
         self.data_dir = data_dir
         self.label_dir = label_dir
         self.labels = None
-    
+
     def get_train_examples(self, filename='train.txt'):
         """Gets a collection of `InputExample`s for the dev set."""
         return self._create_examples(self.read_col_file(os.path.join(self.data_dir, filename)), "train")
-    
+
     def get_dev_examples(self, filename='val.txt', size=-1):
         """Gets a collection of `InputExample`s for the dev set."""
         return self._create_examples(self.read_col_file(os.path.join(self.data_dir, filename)), "val")
@@ -172,18 +173,18 @@ class NERTextProcessor(DataProcessor):
             self.labels = list(pd.read_csv(os.path.join(
                 self.label_dir, filename), header=None)[0].astype('str').values)
         return self.labels
-    
-    def _create_examples(self,lines,set_type):
+
+    def _create_examples(self, lines, set_type):
         examples = []
-        for i,(sentence,label) in enumerate(lines):
+        for i, (sentence, label) in enumerate(lines):
             guid = "%s-%s" % (set_type, i)
             text_a = ' '.join(sentence)
             text_b = None
             label = label
-            examples.append(InputExample(guid=guid,text_a=text_a,text_b=text_b,label=label))
+            examples.append(InputExample(
+                guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
-    
     def read_col_file(self, filename):
         '''
         read file
@@ -194,11 +195,11 @@ class NERTextProcessor(DataProcessor):
         f = open(filename)
         data = []
         sentence = []
-        label= []
+        label = []
         for line in f:
-            if len(line)==0 or line.startswith('-DOCSTART') or line[0]=="\n":
+            if len(line) == 0 or line.startswith('-DOCSTART') or line[0] == "\n":
                 if len(sentence) > 0:
-                    data.append((sentence,label))
+                    data.append((sentence, label))
                     sentence = []
                     label = []
                 continue
@@ -206,12 +207,13 @@ class NERTextProcessor(DataProcessor):
             sentence.append(splits[0])
             label.append(splits[-1][:-1])
 
-        if len(sentence) >0:
-            data.append((sentence,label))
+        if len(sentence) > 0:
+            data.append((sentence, label))
             sentence = []
             label = []
         return data
-        
+
+
 class TextProcessor(DataProcessor):
 
     def __init__(self, data_dir, label_dir):
@@ -319,7 +321,15 @@ class BertDataBunch(object):
             pickle.dump(self, f)
 
     @staticmethod
-    def load(data_dir, filename="databunch.pkl"):
+    def load(data_dir, backend='nccl', filename="databunch.pkl"):
+
+        try:
+            torch.distributed.init_process_group(backend=backend,
+                                                 init_method="tcp://localhost:23459",
+                                                 rank=0, world_size=1)
+        except:
+            pass
+
         tmp_path = data_dir/'tmp'
         with open(str(tmp_path/filename), "rb") as f:
             databunch = pickle.load(f)
@@ -338,6 +348,9 @@ class BertDataBunch(object):
         self.val_dl = None
         self.test_dl = None
         self.multi_label = multi_label
+        self.n_gpu = 0
+        if multi_gpu:
+            self.n_gpu = torch.cuda.device_count()
 
         if multi_label:
             processor = MultiLabelTextProcessor(data_dir, label_dir)
@@ -369,16 +382,21 @@ class BertDataBunch(object):
             train_data = TensorDataset(
                 all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
+            train_batch_size = bs * max(1, self.n_gpu)
+
             if multi_gpu:
                 train_sampler = RandomSampler(train_data)
             else:
-                torch.distributed.init_process_group(backend=backend, 
-                                     init_method = "tcp://localhost:23459", 
-                                     rank=0, world_size=1)
-                #torch.distributed.init_process_group(backend='nccl')
+                try:
+                    torch.distributed.init_process_group(backend=backend,
+                                                         init_method="tcp://localhost:23459",
+                                                         rank=0, world_size=1)
+                except:
+                    pass
+                # torch.distributed.init_process_group(backend='nccl')
                 train_sampler = DistributedSampler(train_data)
             self.train_dl = DataLoader(
-                train_data, sampler=train_sampler, batch_size=bs)
+                train_data, sampler=train_sampler, batch_size=train_batch_size)
 
         if val_file:
             # Validation DataLoader
@@ -403,9 +421,21 @@ class BertDataBunch(object):
             val_data = TensorDataset(
                 all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
-            val_sampler = SequentialSampler(val_data)
+            val_batch_size = bs * max(1, self.n_gpu)
+            if multi_gpu:
+                val_sampler = RandomSampler(val_data)
+            else:
+                try:
+                    torch.distributed.init_process_group(backend=backend,
+                                                         init_method="tcp://localhost:23459",
+                                                         rank=0, world_size=1)
+                except:
+                    pass
+
+                val_sampler = DistributedSampler(val_data)
+
             self.val_dl = DataLoader(
-                val_data, sampler=val_sampler, batch_size=bs)
+                val_data, sampler=val_sampler, batch_size=val_batch_size)
 
         if test_data:
             test_examples = []

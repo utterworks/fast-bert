@@ -1,4 +1,4 @@
-from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertModel, BertConfig
+from pytorch_transformers import BertForSequenceClassification, BertModel, BertConfig
 import torch
 from torch import Tensor
 from torch.nn import BCEWithLogitsLoss

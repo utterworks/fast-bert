@@ -1,6 +1,6 @@
 import os
 import torch
-from pytorch_pretrained_bert.tokenization import BertTokenizer
+from pytorch_transformers import BertTokenizer
 from .data import BertDataBunch
 from .learner import BertLearner
 
