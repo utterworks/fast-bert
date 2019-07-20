@@ -29,7 +29,7 @@ SCHEDULES = {
     "warmup_cosine": WarmupCosineSchedule,
     "warmup_constant": WarmupConstantSchedule,
     "warmup_linear": WarmupLinearSchedule,
-    "warmup_cosine_warmpup_restarts": WarmupCosineWithWarmupRestartsSchedule,
+    "warmup_cosine_warmup_restarts": WarmupCosineWithWarmupRestartsSchedule,
     "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
 }
 
