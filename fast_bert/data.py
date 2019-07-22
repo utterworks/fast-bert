@@ -388,6 +388,7 @@ class BertDataBunch(object):
                 train_sampler = RandomSampler(train_data)
             else:
                 try:
+#                    torch.distributed.init_process_group(backend='nccl')
                     torch.distributed.init_process_group(backend=backend,
                                                          init_method="tcp://localhost:23459",
                                                          rank=0, world_size=1)
@@ -426,9 +427,11 @@ class BertDataBunch(object):
                 val_sampler = RandomSampler(val_data)
             else:
                 try:
+#                    torch.distributed.init_process_group(backend=backend)
                     torch.distributed.init_process_group(backend=backend,
                                                          init_method="tcp://localhost:23459",
                                                          rank=0, world_size=1)
+                    
                 except:
                     pass
 

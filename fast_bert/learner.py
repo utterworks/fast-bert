@@ -2,7 +2,13 @@ import os
 from .data import BertDataBunch, InputExample, InputFeatures
 from .modeling import BertForMultiLabelSequenceClassification
 from torch.optim.lr_scheduler import _LRScheduler, Optimizer
-from pytorch_transformers import AdamW, ConstantLRSchedule, WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithHardRestartsSchedule
+from pytorch_transformers import AdamW, ConstantLRSchedule
+
+from tensorboardX import SummaryWriter
+
+
+ 
+
 from pytorch_transformers import BertForSequenceClassification
 from .bert_layers import BertLayerNorm
 from fastprogress.fastprogress import master_bar, progress_bar
@@ -14,25 +20,13 @@ from sklearn.metrics import roc_curve, auc
 from fastai.torch_core import *
 from fastai.callback import *
 
+from apex import amp
+
 try:
     from apex.normalization.fused_layer_norm import FusedLayerNorm
 except:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
     
-
-def warmup_linear(x, warmup=0.002):
-    if x < warmup:
-        return x/warmup
-    return 1.0 - x
-
-SCHEDULES = {
-    None:       ConstantLRSchedule,
-    "none":     ConstantLRSchedule,
-    "warmup_cosine": WarmupCosineSchedule,
-    "warmup_constant": WarmupConstantSchedule,
-    "warmup_linear": WarmupLinearSchedule,
-    "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
-}
 
 class BertLearner(object):
     data:BertDataBunch
@@ -45,8 +39,8 @@ class BertLearner(object):
     
     @staticmethod
     def from_pretrained_model(dataBunch, pretrained_path, metrics, device, logger, finetuned_wgts_path=None, 
-                              multi_gpu=True, is_fp16=True, loss_scale=0, warmup_proportion=0.1, fp16_opt_level='O1',
-                              grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0):
+                              multi_gpu=True, is_fp16=True, loss_scale=0, warmup_proportion=0.1, fp16_opt_level='O3',
+                              grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, use_amp_optimizer=False):
         
         model_state_dict = None
         
@@ -75,14 +69,14 @@ class BertLearner(object):
 #                model = torch.nn.DataParallel(model)
             
         return BertLearner(dataBunch, model, pretrained_path, metrics, device, logger, 
-                           multi_gpu, is_fp16, loss_scale, warmup_proportion, fp16_opt_level, grad_accumulation_steps, multi_label, max_grad_norm )
+                           multi_gpu, is_fp16, loss_scale, warmup_proportion, fp16_opt_level, grad_accumulation_steps, multi_label, max_grad_norm, use_amp_optimizer)
             
         
         
         
     def __init__(self, data: BertDataBunch, model: nn.Module, pretrained_model_path, metrics, device,logger,
-                 multi_gpu=True, is_fp16=True, loss_scale=0, warmup_proportion=0.1, fp16_opt_level='O1',
-                 grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0):
+                 multi_gpu=True, is_fp16=True, loss_scale=0, warmup_proportion=0.1, fp16_opt_level='O2',
+                 grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, use_amp_optimizer=False):
         
         self.multi_label = multi_label
         self.data = data
@@ -102,15 +96,13 @@ class BertLearner(object):
         self.bn_types = (BertLayerNorm, FusedLayerNorm)
         self.n_gpu = 0
         self.max_grad_norm = max_grad_norm
+        self.use_amp_optimizer = use_amp_optimizer
+        
+        self.logging_steps = 50
         
         if self.multi_gpu:
             self.n_gpu = torch.cuda.device_count()
         
-        # split models
-        # self.split(self.bert_clas_split)
-        #self.layer_groups = self.bert_clas_split()
-        
-        # self.freeze()
     
     
     def freeze_to(self, n:int)->None:
@@ -121,16 +113,6 @@ class BertLearner(object):
         for g in self.layer_groups[n:]: requires_grad(g, True)
         self.optimizer = None
     
-#    def freeze_to(self, n:int)->None:
-#        for g in self.layer_groups[:n]:
-#            for m in g:
-#                self.freeze_module(m)
-#                
-#        for g in self.layer_groups[n:]: 
-#            for m in g:
-#                self.unfreeze_module(m)
-#        
-#        self.optimizer = None
                 
     def freeze_module(self, module):
         for param in module.parameters():
@@ -180,7 +162,20 @@ class BertLearner(object):
         return self
     
     
-    def get_optimizer(self, lr, num_train_steps, schedule_type='warmup_linear'):
+    def get_optimizer_old(self, lr, num_train_steps, schedule_type='warmup_linear'):
+        
+        
+        from .optimization import BertAdam, ConstantLR, WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithWarmupRestartsSchedule, WarmupCosineWithHardRestartsSchedule
+        
+        SCHEDULES = {
+            None:       ConstantLR,
+            "none":     ConstantLR,
+            "warmup_cosine": WarmupCosineSchedule,
+            "warmup_constant": WarmupConstantSchedule,
+            "warmup_linear": WarmupLinearSchedule,
+            "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
+        }
+        
         param_optimizer = list(self.model.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         
@@ -193,18 +188,72 @@ class BertLearner(object):
         if self.multi_gpu == False:
             t_total = t_total // torch.distributed.get_world_size()
         
-        optimizer = AdamW(optimizer_grouped_parameters, lr=lr) 
+        schedule_class = SCHEDULES[schedule_type]
+        schedule = schedule_class(warmup=self.warmup_proportion, t_total=t_total)
+        
+        
+        
+        if self.is_fp16:
+            try:
+                from apex.optimizers import FP16_Optimizer
+                from apex.optimizers import FusedAdam
+            except ImportError:
+                raise ImportError("Please install apex from https://www.github.com/nvidia/apex")
+
+            optimizer = FusedAdam(optimizer_grouped_parameters,
+                                  lr=lr,
+                                  bias_correction=False,
+                                  max_grad_norm=1.0)
+            
+            if self.loss_scale == 0:
+                optimizer = FP16_Optimizer(optimizer, dynamic_loss_scale=True)
+            else:
+                optimizer = FP16_Optimizer(optimizer, static_loss_scale=self.loss_scale)
+            
+        else:
+            pass
+        
+        
+        return optimizer, schedule
+    
+    def get_optimizer(self, lr, num_train_steps, schedule_type='warmup_linear'):
+        
+        from pytorch_transformers import WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithHardRestartsSchedule
+        
+        SCHEDULES = {
+            None:       ConstantLRSchedule,
+            "none":     ConstantLRSchedule,
+            "warmup_cosine": WarmupCosineSchedule,
+            "warmup_constant": WarmupConstantSchedule,
+            "warmup_linear": WarmupLinearSchedule,
+            "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
+        }
+        
+        param_optimizer = list(self.model.named_parameters())
+        no_decay = ['bias', 'LayerNorm.weight']
+        
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        
+        t_total = num_train_steps
+        if self.multi_gpu == False:
+            t_total = t_total // torch.distributed.get_world_size()
+        
+#        optimizer = AdamW(optimizer_grouped_parameters, lr=lr, correct_bias=False) 
+        optimizer = AdamW(optimizer_grouped_parameters, lr=lr, eps=1e-8) 
         
         warmup_steps = self.warmup_proportion * t_total
         schedule_class = SCHEDULES[schedule_type]
         schedule = schedule_class(optimizer, warmup_steps=warmup_steps, t_total=t_total)
         
-        if self.is_fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-            self.model, optimizer = amp.initialize(self.model, optimizer, opt_level=self.fp16_opt_level)
+#        if self.is_fp16:
+#            try:
+#                from apex import amp
+#            except ImportError:
+#                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+#            self.model, optimizer = amp.initialize(self.model, optimizer, opt_level=self.fp16_opt_level)
         
         return optimizer, schedule
     
@@ -230,6 +279,11 @@ class BertLearner(object):
         
         for step, batch in enumerate(progress_bar(self.data.val_dl)):
             batch = tuple(t.to(self.device) for t in batch)
+            
+            if self.use_amp_optimizer == False:
+                if self.is_fp16 and self.multi_label:
+                    label_ids = label_ids.half()
+            
             with torch.no_grad():
                 inputs = {'input_ids':      batch[0],
                           'attention_mask': batch[1],
@@ -300,8 +354,9 @@ class BertLearner(object):
                 label_ids = label_ids.half()
             
             with torch.no_grad():
-                tmp_eval_loss = self.model(input_ids, segment_ids, input_mask, label_ids)
-                logits = self.model(input_ids, segment_ids, input_mask)
+                outputs = self.model(input_ids, segment_ids, input_mask, label_ids)
+                tmp_eval_loss, logits = outputs[:2]
+#                logits = self.model(input_ids, segment_ids, input_mask)
 
                 
                 
@@ -373,18 +428,21 @@ class BertLearner(object):
 #        else:
 #            self.model = torch.nn.DataParallel(self.model)
     
+### Train the model ###    
     def fit(self, epochs, lr, validate=True, schedule_type="warmup_linear"):
         
-        num_train_steps = int(len(self.data.train_dl) / self.grad_accumulation_steps * epochs)
+        if self.use_amp_optimizer == False:
+            self.fit_old(epochs, lr, validate=validate, schedule_type=schedule_type)
+            return
+        
+        num_train_steps = int((len(self.data.train_dl) / self.grad_accumulation_steps) * epochs)
         
         if self.optimizer is None:
             self.optimizer, self.schedule = self.get_optimizer(lr , num_train_steps)
         
         if self.is_fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+            self.model, self.optimizer = amp.initialize(self.model, self.optimizer, opt_level=self.fp16_opt_level)
+            
         
         # Parallelize the model architecture
         if self.multi_gpu == False:
@@ -398,7 +456,7 @@ class BertLearner(object):
             self.model = torch.nn.DataParallel(self.model)
         
         self.logger.info("***** Running training *****")
-        self.logger.info("  Num examples = %d", len(self.data.train_dl))
+        self.logger.info("  Num examples = %d", len(self.data.train_dl.dataset))
         self.logger.info("  Num Epochs = %d", epochs)
         
         t_total = num_train_steps
@@ -413,14 +471,15 @@ class BertLearner(object):
         self.model.zero_grad()
         
         pbar = master_bar(range(epochs))
+        tb_writer = SummaryWriter()
         
         for epoch in pbar:
-            self.model.train()
             
-            tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
+            epoch_tr_loss = 0.0
             
             for step, batch in enumerate(progress_bar(self.data.train_dl, parent=pbar)):
+                self.model.train()
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = {'input_ids':      batch[0],
                           'attention_mask': batch[1],
@@ -441,36 +500,44 @@ class BertLearner(object):
                     with amp.scale_loss(loss, self.optimizer) as scaled_loss:
                         scaled_loss.backward()
                     torch.nn.utils.clip_grad_norm_(amp.master_params(self.optimizer), self.max_grad_norm)
+                    
                 else:
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                 
             
                 tr_loss += loss.item()
-                nb_tr_examples += inputs['input_ids'].size(0)
-                nb_tr_steps += 1
+                epoch_tr_loss += loss.item()
                 
                 if (step + 1) % self.grad_accumulation_steps == 0:
                     self.schedule.step()  # Update learning rate schedule
                     self.optimizer.step()
                     self.model.zero_grad()
                     global_step += 1
+                    nb_tr_steps += 1
+                    
+                    if self.logging_steps > 0 and (global_step % self.logging_steps == 0):
+                        self.logger.info('Loss after global step {} - {}'.format(global_step, (tr_loss - logging_loss)/self.logging_steps))
+                        self.logger.info('LR after global step {} - {}'.format(global_step, self.schedule.get_lr()[0]))
+                        tb_writer.add_scalar('lr', self.schedule.get_lr()[0], global_step)
+                        tb_writer.add_scalar('loss', (tr_loss - logging_loss)/self.logging_steps, global_step)
+                        logging_loss = tr_loss
             
-            self.logger.info('Loss after epoch {} - {}'.format(epoch, tr_loss / nb_tr_steps))
+            self.logger.info('Loss after epoch {} - {}'.format(epoch, epoch_tr_loss / nb_tr_steps))
         
             if validate:
                 self.validate()
         
         
-        
+        tb_writer.close()
         
         
     def fit_old(self, epochs, lr, validate=True, schedule_type="warmup_linear"):
         
-        num_train_steps = int(len(self.data.train_dl) / self.grad_accumulation_steps * epochs)
-        if self.optimizer is None:
-            self.optimizer, self.schedule = self.get_optimizer(lr , num_train_steps)
+        if self.is_fp16:
+            self.model = self.model.half()
         
+        # Parallelize the model architecture
         if self.multi_gpu == False:
             try:
                 from apex.parallel import DistributedDataParallel as DDP
@@ -481,6 +548,10 @@ class BertLearner(object):
         else:
             self.model = torch.nn.DataParallel(self.model)
         
+        num_train_steps = int(len(self.data.train_dl) / self.grad_accumulation_steps * epochs)
+        if self.optimizer is None:
+            self.optimizer, self.schedule = self.get_optimizer_old(lr , num_train_steps)
+        
         t_total = num_train_steps
         if self.multi_gpu == False:
             t_total = t_total // torch.distributed.get_world_size()
@@ -488,21 +559,28 @@ class BertLearner(object):
         global_step = 0
         
         pbar = master_bar(range(epochs))
+        tb_writer = SummaryWriter()
+        
+        logging_loss = 0.0
+        tr_loss = 0.0
         
         for epoch in pbar:
             self.model.train()
   
-            tr_loss = 0
+            epoch_tr_loss = 0.0
             nb_tr_examples, nb_tr_steps = 0, 0
             
             for step, batch in enumerate(progress_bar(self.data.train_dl, parent=pbar)):
+                self.model.train()
                 batch = tuple(t.to(self.device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
                 
                 if self.is_fp16 and self.multi_label:
                     label_ids = label_ids.half()
                 
-                loss = self.model(input_ids, segment_ids, input_mask, label_ids)
+                outputs = self.model(input_ids, segment_ids, input_mask, label_ids)
+                loss = outputs[0]
+                
                 if self.multi_gpu:
                     loss = loss.mean() # mean() to average on multi-gpu.
                 if self.grad_accumulation_steps > 1:
@@ -514,26 +592,38 @@ class BertLearner(object):
                     loss.backward()
                 
                 tr_loss += loss.item()
+                epoch_tr_loss += loss.item()
+                
                 nb_tr_examples += input_ids.size(0)
                 nb_tr_steps += 1
                 
                 if (step + 1) % self.grad_accumulation_steps == 0:
+                    lr_this_step = lr * self.schedule.get_lr(global_step)
                     if self.is_fp16:
                         # modify learning rate with special warm up BERT uses
                         # if args.fp16 is False, BertAdam is used that handles this automatically
-                        lr_this_step = lr * self.schedule.get_lr(global_step)
-                    
+                        
                         for param_group in self.optimizer.param_groups:
                             param_group['lr'] = lr_this_step
                     self.optimizer.step()
                     self.optimizer.zero_grad()
                     global_step += 1
+                    
+                    if self.logging_steps > 0 and (global_step % self.logging_steps == 0):
+                        self.logger.info('Loss after global step {} - {}'.format(global_step, (tr_loss - logging_loss)/self.logging_steps))
+                        self.logger.info('LR after global step {} - {}'.format(global_step, lr_this_step))
+                        
+                        tb_writer.add_scalar('lr', lr_this_step, global_step)
+                        tb_writer.add_scalar('loss', (tr_loss - logging_loss)/self.logging_steps, global_step)
+                        logging_loss = tr_loss
                 
-            self.logger.info('Loss after epoch {} - {}'.format(epoch, tr_loss / nb_tr_steps))
+            self.logger.info('Loss after epoch {} - {}'.format((epoch + 1), epoch_tr_loss / nb_tr_steps))
 #             logger.info('Eval after epoch  {}'.format(epoch))
-        
+            
             if validate:
                 self.validate()
+        
+        tb_writer.close()
     
     def predict_batch(self, texts=None):
         
