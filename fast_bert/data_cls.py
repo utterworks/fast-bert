@@ -73,18 +73,29 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_b.pop()
 
 
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
-    """Loads a data file into a list of `InputBatch`s."""
+def convert_examples_to_features(examples, label_list, max_seq_length,
+                                 tokenizer, output_mode='classification',
+                                 cls_token_at_end=False, pad_on_left=False,
+                                 cls_token='[CLS]', sep_token='[SEP]', pad_token=0,
+                                 sequence_a_segment_id=0, sequence_b_segment_id=1,
+                                 cls_token_segment_id=1, pad_token_segment_id=0,
+                                 mask_padding_with_zero=True, logger=None):
+    """ Loads a data file into a list of `InputBatch`s
+        `cls_token_at_end` define the location of the CLS token:
+            - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
+            - True (XLNet/GPT pattern): A + [SEP] + B + [SEP] + [CLS]
+        `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
+    """
 
-    label_map = {label: i for i, label in enumerate(label_list)}
+    label_map = {label : i for i, label in enumerate(label_list)}
 
     features = []
     for (ex_index, example) in enumerate(examples):
-        try:
-            tokens_a = tokenizer.tokenize(example.text_a)
-        except:
-            print("Cannot tokenise item {}, Text:{}".format(
-                ex_index, example.text_a))
+        if ex_index % 10000 == 0:
+            if logger:
+                logger.info("Writing example %d of %d" % (ex_index, len(examples)))
+
+        tokens_a = tokenizer.tokenize(example.text_a)
 
         tokens_b = None
         if example.text_b:
@@ -98,44 +109,82 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             if len(tokens_a) > max_seq_length - 2:
                 tokens_a = tokens_a[:(max_seq_length - 2)]
 
-        tokens = ["[CLS]"] + tokens_a + ["[SEP]"]
-        segment_ids = [0] * len(tokens)
+        # The convention in BERT is:
+        # (a) For sequence pairs:
+        #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
+        #  type_ids:   0   0  0    0    0     0       0   0   1  1  1  1   1   1
+        # (b) For single sequences:
+        #  tokens:   [CLS] the dog is hairy . [SEP]
+        #  type_ids:   0   0   0   0  0     0   0
+        #
+        # Where "type_ids" are used to indicate whether this is the first
+        # sequence or the second sequence. The embedding vectors for `type=0` and
+        # `type=1` were learned during pre-training and are added to the wordpiece
+        # embedding vector (and position vector). This is not *strictly* necessary
+        # since the [SEP] token unambiguously separates the sequences, but it makes
+        # it easier for the model to learn the concept of sequences.
+        #
+        # For classification tasks, the first vector (corresponding to [CLS]) is
+        # used as as the "sentence vector". Note that this only makes sense because
+        # the entire model is fine-tuned.
+        tokens = tokens_a + [sep_token]
+        segment_ids = [sequence_a_segment_id] * len(tokens)
 
         if tokens_b:
-            tokens += tokens_b + ["[SEP]"]
-            segment_ids += [1] * (len(tokens_b) + 1)
+            tokens += tokens_b + [sep_token]
+            segment_ids += [sequence_b_segment_id] * (len(tokens_b) + 1)
+
+        if cls_token_at_end:
+            tokens = tokens + [cls_token]
+            segment_ids = segment_ids + [cls_token_segment_id]
+        else:
+            tokens = [cls_token] + tokens
+            segment_ids = [cls_token_segment_id] + segment_ids
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
 
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
-        input_mask = [1] * len(input_ids)
+        input_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
 
         # Zero-pad up to the sequence length.
-        padding = [0] * (max_seq_length - len(input_ids))
-        input_ids += padding
-        input_mask += padding
-        segment_ids += padding
+        padding_length = max_seq_length - len(input_ids)
+        if pad_on_left:
+            input_ids = ([pad_token] * padding_length) + input_ids
+            input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
+            segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
+        else:
+            input_ids = input_ids + ([pad_token] * padding_length)
+            input_mask = input_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
+            segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
 
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
 
-        if isinstance(example.label, list):
-            label_id = []
-            for label in example.label:
-                label_id.append(float(label))
+        if output_mode == "classification":
+            label_id = label_map[example.label]
+        elif output_mode == "regression":
+            label_id = float(example.label)
         else:
-            if example.label != None:
-                label_id = label_map[example.label]
-            else:
-                label_id = ''
+            raise KeyError(output_mode)
+
+        if ex_index < 5:
+            if logger:
+                logger.info("*** Example ***")
+                logger.info("guid: %s" % (example.guid))
+                logger.info("tokens: %s" % " ".join(
+                        [str(x) for x in tokens]))
+                logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+                logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
+                logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+                logger.info("label: %s (id = %d)" % (example.label, label_id))
 
         features.append(
-            InputFeatures(input_ids=input_ids,
-                          input_mask=input_mask,
-                          segment_ids=segment_ids,
-                          label_id=label_id))
+                InputFeatures(input_ids=input_ids,
+                              input_mask=input_mask,
+                              segment_ids=segment_ids,
+                              label_id=label_id))
     return features
 
 
@@ -159,70 +208,6 @@ class DataProcessor(object):
         raise NotImplementedError()
 
 
-class NERTextProcessor(DataProcessor):
-
-    def __init__(self, data_dir, label_dir):
-        self.data_dir = data_dir
-        self.label_dir = label_dir
-        self.labels = None
-
-    def get_train_examples(self, filename='train.txt'):
-        """Gets a collection of `InputExample`s for the dev set."""
-        return self._create_examples(self.read_col_file(os.path.join(self.data_dir, filename)), "train")
-
-    def get_dev_examples(self, filename='val.txt', size=-1):
-        """Gets a collection of `InputExample`s for the dev set."""
-        return self._create_examples(self.read_col_file(os.path.join(self.data_dir, filename)), "val")
-
-    def get_test_examples(self, filename='test.txt', size=-1):
-        """Gets a collection of `InputExample`s for the test set."""
-        return self._create_examples(self.read_col_file(os.path.join(self.data_dir, filename)), "test")
-
-    def get_labels(self, filename='labels.csv'):
-        """See base class."""
-        if self.labels == None:
-            self.labels = list(pd.read_csv(os.path.join(
-                self.label_dir, filename), header=None)[0].astype('str').values)
-        return self.labels
-
-    def _create_examples(self, lines, set_type):
-        examples = []
-        for i, (sentence, label) in enumerate(lines):
-            guid = "%s-%s" % (set_type, i)
-            text_a = ' '.join(sentence)
-            text_b = None
-            label = label
-            examples.append(InputExample(
-                guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-    def read_col_file(self, filename):
-        '''
-        read file
-        return format :
-        [ ['EU', 'B-ORG'], ['rejects', 'O'], ['German', 'B-MISC'], ['call', 'O'], ['to', 'O'], ['boycott', 'O'], 
-        ['British', 'B-MISC'], ['lamb', 'O'], ['.', 'O'] ]
-        '''
-        f = open(filename)
-        data = []
-        sentence = []
-        label = []
-        for line in f:
-            if len(line) == 0 or line.startswith('-DOCSTART') or line[0] == "\n":
-                if len(sentence) > 0:
-                    data.append((sentence, label))
-                    sentence = []
-                    label = []
-                continue
-            splits = line.split(' ')
-            sentence.append(splits[0])
-            label.append(splits[-1][:-1])
-
-        if len(sentence) > 0:
-            data.append((sentence, label))
-            sentence = []
-            label = []
-        return data
 
 
 class TextProcessor(DataProcessor):
@@ -346,10 +331,45 @@ class BertDataBunch(object):
             databunch = pickle.load(f)
 
         return databunch
+    
+    def get_dataset_from_examples(self, examples, is_test=False):
+                 
+        # Create tokenized and numericalized features 
+        features = convert_examples_to_features(
+                examples, 
+                label_list=self.labels, 
+                max_seq_length=self.max_seq_length, 
+                tokenizer=self.tokenizer, 
+                output_mode=self.output_mode,
+                cls_token_at_end=bool(self.model_type in ['xlnet']), # xlnet has a cls token at the end
+                cls_token=self.tokenizer.cls_token,
+                sep_token=self.tokenizer.sep_token,
+                cls_token_segment_id=2 if self.model_type in ['xlnet'] else 0,
+                pad_on_left=bool(self.model_type in ['xlnet']),                 # pad on the left for xlnet
+                pad_token_segment_id=4 if self.model_type in ['xlnet'] else 0,
+                logger=self.logger)
+
+        # Convert to Tensors and build dataset
+        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+        
+        if is_test == False: # labels not available for test set
+            if self.multi_label:
+                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
+            else:
+                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
+        else:
+            all_label_ids = None
+
+        dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+        
+        return dataset
+        
 
     def __init__(self, data_dir, label_dir, tokenizer, train_file='train.csv', val_file='val.csv', test_data=None,
-                 label_file='labels.csv', text_col='text', label_col='label', bs=32, maxlen=512,
-                 multi_gpu=True, multi_label=False, backend="nccl", model_type='bert'):
+                 label_file='labels.csv', text_col='text', label_col='label', batch_size_per_gpu=16, max_seq_length=512,
+                 multi_gpu=True, multi_label=False, backend="nccl", model_type='bert', logger=None):
         
         if isinstance(tokenizer, str):
             _,_,tokenizer_class = MODEL_CLASSES[model_type]
@@ -358,13 +378,16 @@ class BertDataBunch(object):
 
         self.tokenizer = tokenizer  
         self.data_dir = data_dir
-        self.maxlen = maxlen
-        self.bs = bs
+        self.max_seq_length = max_seq_length
+        self.batch_size_per_gpu = batch_size_per_gpu
         self.train_dl = None
         self.val_dl = None
         self.test_dl = None
         self.multi_label = multi_label
         self.n_gpu = 0
+        self.model_type = model_type
+        self.output_mode = 'classification'
+        self.logger = logger
         if multi_gpu:
             self.n_gpu = torch.cuda.device_count()
 
@@ -378,85 +401,29 @@ class BertDataBunch(object):
         if train_file:
             # Train DataLoader
             train_examples = processor.get_train_examples(
-                train_file, text_col=text_col, label_col=label_col)
-            train_features = convert_examples_to_features(train_examples, label_list=self.labels,
-                                                          tokenizer=tokenizer, max_seq_length=maxlen)
+                train_file, text_col=text_col, label_col=label_col)  
 
-            all_input_ids = torch.tensor(
-                [f.input_ids for f in train_features], dtype=torch.long)
-            all_input_mask = torch.tensor(
-                [f.input_mask for f in train_features], dtype=torch.long)
-            all_segment_ids = torch.tensor(
-                [f.segment_ids for f in train_features], dtype=torch.long)
-            if multi_label:
-                all_label_ids = torch.tensor(
-                    [f.label_id for f in train_features], dtype=torch.float)
-            else:
-                all_label_ids = torch.tensor(
-                    [f.label_id for f in train_features], dtype=torch.long)
+            train_dataset = self.get_dataset_from_examples(train_examples)
 
-            train_data = TensorDataset(
-                all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-
-            train_batch_size = bs * max(1, self.n_gpu)
-
-            if multi_gpu:
-                train_sampler = RandomSampler(train_data)
-            else:
-                try:
-#                    torch.distributed.init_process_group(backend='nccl')
-                    torch.distributed.init_process_group(backend=backend,
-                                                         init_method="tcp://localhost:23459",
-                                                         rank=0, world_size=1)
-                except:
-                    pass
-                # torch.distributed.init_process_group(backend='nccl')
-                train_sampler = DistributedSampler(train_data)
-            self.train_dl = DataLoader(
-                train_data, sampler=train_sampler, batch_size=train_batch_size)
+            self.train_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
+            train_sampler = RandomSampler(train_dataset)
+            self.train_dl = DataLoader(train_dataset, sampler=train_sampler, batch_size=self.train_batch_size)
+            
 
         if val_file:
             # Validation DataLoader
             val_examples = processor.get_dev_examples(
                 val_file, text_col=text_col, label_col=label_col)
-            val_features = convert_examples_to_features(val_examples, label_list=self.labels,
-                                                        tokenizer=tokenizer, max_seq_length=maxlen)
-
-            all_input_ids = torch.tensor(
-                [f.input_ids for f in val_features], dtype=torch.long)
-            all_input_mask = torch.tensor(
-                [f.input_mask for f in val_features], dtype=torch.long)
-            all_segment_ids = torch.tensor(
-                [f.segment_ids for f in val_features], dtype=torch.long)
-            if multi_label:
-                all_label_ids = torch.tensor(
-                    [f.label_id for f in val_features], dtype=torch.float)
-            else:
-                all_label_ids = torch.tensor(
-                    [f.label_id for f in val_features], dtype=torch.long)
-
-            val_data = TensorDataset(
-                all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-
-            val_batch_size = bs * max(1, self.n_gpu)
-            if multi_gpu:
-                val_sampler = RandomSampler(val_data)
-            else:
-                try:
-#                    torch.distributed.init_process_group(backend=backend)
-                    torch.distributed.init_process_group(backend=backend,
-                                                         init_method="tcp://localhost:23459",
-                                                         rank=0, world_size=1)
-                    
-                except:
-                    pass
-
-                val_sampler = DistributedSampler(val_data)
-
-            self.val_dl = DataLoader(
-                val_data, sampler=val_sampler, batch_size=val_batch_size)
-
+            
+            val_dataset = self.get_dataset_from_examples(val_examples)
+            
+            self.val_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
+            val_sampler = SequentialSampler(val_dataset) 
+            self.val_dl = DataLoader(val_dataset, sampler=val_sampler, batch_size=self.val_batch_size)
+            
+        
         if test_data:
+            # Test set loader for predictions 
             test_examples = []
             input_data = []
 
@@ -467,18 +434,9 @@ class BertDataBunch(object):
                     'text': text
                 })
 
-            test_features = convert_examples_to_features(test_examples, label_list=self.labels,
-                                                         tokenizer=tokenizer, max_seq_length=maxlen)
-            all_input_ids = torch.tensor(
-                [f.input_ids for f in test_features], dtype=torch.long)
-            all_input_mask = torch.tensor(
-                [f.input_mask for f in test_features], dtype=torch.long)
-            all_segment_ids = torch.tensor(
-                [f.segment_ids for f in test_features], dtype=torch.long)
 
-            test_data = TensorDataset(
-                all_input_ids, all_input_mask, all_segment_ids)
-
-            test_sampler = SequentialSampler(test_data)
-            self.test_dl = DataLoader(
-                test_data, sampler=test_sampler, batch_size=bs)
+            test_dataset = self.get_dataset_from_examples(test_examples, is_test=True)
+            
+            self.test_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
+            test_sampler = SequentialSampler(test_dataset)
+            self.test_dl = DataLoader(test_dataset, sampler=test_sampler, batch_size=self.test_batch_size)

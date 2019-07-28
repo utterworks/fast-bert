@@ -6,8 +6,19 @@ from pytorch_transformers import AdamW, ConstantLRSchedule
 
 from tensorboardX import SummaryWriter
 
+from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
+                                  BertForSequenceClassification, BertTokenizer,
+                                  XLMConfig, XLMForSequenceClassification,
+                                  XLMTokenizer, XLNetConfig,
+                                  XLNetForSequenceClassification,
+                                  XLNetTokenizer)
 
- 
+MODEL_CLASSES = {
+    'bert': (BertConfig, (BertForSequenceClassification, BertForMultiLabelSequenceClassification), BertTokenizer),
+    'xlnet': (XLNetConfig, (XLNetForSequenceClassification, XLNetForSequenceClassification), XLNetTokenizer),
+    'xlm': (XLMConfig, (XLMForSequenceClassification, XLMForSequenceClassification), XLMTokenizer)
+}
+
 
 from pytorch_transformers import BertForSequenceClassification
 from .bert_layers import BertLayerNorm
@@ -28,6 +39,9 @@ except:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
     
 
+class Learner(object):
+    
+    
 class BertLearner(object):
     data:BertDataBunch
     model:torch.nn.Module
@@ -39,44 +53,42 @@ class BertLearner(object):
     
     @staticmethod
     def from_pretrained_model(dataBunch, pretrained_path, metrics, device, logger, finetuned_wgts_path=None, 
-                              multi_gpu=True, is_fp16=True, loss_scale=0, warmup_proportion=0.1, fp16_opt_level='O3',
-                              grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, use_amp_optimizer=False):
+                              multi_gpu=True, is_fp16=True, loss_scale=0, warmup_proportion=0.1, fp16_opt_level='O1',
+                              grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, 
+                              use_amp_optimizer=False, model_type='bert'):
         
         model_state_dict = None
+        
+        config_class, model_class, _ = MODEL_CLASSES[model_type]
+        
+        
         
         if finetuned_wgts_path:
             model_state_dict = torch.load(finetuned_wgts_path)
         
         if multi_label == True:
-            model = BertForMultiLabelSequenceClassification.from_pretrained(pretrained_path, 
+            model = model_class[1].from_pretrained(pretrained_path, 
                                                                   num_labels = len(dataBunch.labels), 
                                                                   state_dict=model_state_dict)
         else:
-            model = BertForSequenceClassification.from_pretrained(pretrained_path, 
+            model = model_class[0].from_pretrained(pretrained_path, 
                                                                   num_labels = len(dataBunch.labels), 
                                                                   state_dict=model_state_dict)
         
-        device_id = torch.cuda.current_device()
-        
+        device_id = torch.cuda.current_device() 
         model.to(device)
-        
-#        if device.type == 'cuda':
-#            if multi_gpu == False:
-#                model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device_id],
-#                                                                  output_device=device_id,
-#                                                                  find_unused_parameters=True)
-#            else:
-#                model = torch.nn.DataParallel(model)
             
         return BertLearner(dataBunch, model, pretrained_path, metrics, device, logger, 
-                           multi_gpu, is_fp16, loss_scale, warmup_proportion, fp16_opt_level, grad_accumulation_steps, multi_label, max_grad_norm, use_amp_optimizer)
+                           multi_gpu, is_fp16, loss_scale, warmup_proportion, fp16_opt_level, grad_accumulation_steps, 
+                           multi_label, max_grad_norm, use_amp_optimizer, model_type)
             
         
         
         
     def __init__(self, data: BertDataBunch, model: nn.Module, pretrained_model_path, metrics, device,logger,
-                 multi_gpu=True, is_fp16=True, loss_scale=0, warmup_proportion=0.1, fp16_opt_level='O2',
-                 grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, use_amp_optimizer=False):
+                 multi_gpu=True, is_fp16=True, loss_scale=0, warmup_proportion=0.1, fp16_opt_level='O1',
+                 grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, 
+                 use_amp_optimizer=False, model_type='bert'):
         
         self.multi_label = multi_label
         self.data = data
@@ -445,14 +457,7 @@ class BertLearner(object):
             
         
         # Parallelize the model architecture
-        if self.multi_gpu == False:
-            try:
-                from apex.parallel import DistributedDataParallel as DDP
-            except ImportError:
-                raise ImportError("Please install apex distributed and fp16 training.")
-
-            self.model = DDP(self.model)
-        else:
+        if self.multi_gpu == True:
             self.model = torch.nn.DataParallel(self.model)
         
         self.logger.info("***** Running training *****")
