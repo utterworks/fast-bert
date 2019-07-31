@@ -2,6 +2,8 @@ import os
 from .data import BertDataBunch, InputExample, InputFeatures
 from .modeling import BertForMultiLabelSequenceClassification
 
+from pathlib import Path
+
 from torch.optim.lr_scheduler import _LRScheduler, Optimizer
 from pytorch_transformers import AdamW, ConstantLRSchedule
 
@@ -43,7 +45,7 @@ except:
 class BertLearner(object):
     
     @staticmethod
-    def from_pretrained_model(dataBunch, pretrained_path, metrics, device, logger, finetuned_wgts_path=None, 
+    def from_pretrained_model(dataBunch, pretrained_path, output_dir, metrics, device, logger, finetuned_wgts_path=None, 
                               multi_gpu=True, is_fp16=True, loss_scale=0, warmup_steps=0, fp16_opt_level='O1',
                               grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, adam_epsilon=1e-8, 
                               logging_steps=100):
@@ -66,17 +68,14 @@ class BertLearner(object):
         
         device_id = torch.cuda.current_device() 
         model.to(device)
-        
-        # Parallelize the model architecture
-        if multi_gpu == True:
-            model = torch.nn.DataParallel(model)
+    
             
-        return BertLearner(dataBunch, model, pretrained_path, metrics, device, logger, 
+        return BertLearner(dataBunch, model, pretrained_path, output_dir, metrics, device, logger,
                            multi_gpu, is_fp16, loss_scale, warmup_steps, fp16_opt_level, grad_accumulation_steps, 
                            multi_label, max_grad_norm, adam_epsilon, logging_steps)
              
         
-    def __init__(self, data: BertDataBunch, model: nn.Module, pretrained_model_path, metrics, device,logger,
+    def __init__(self, data: BertDataBunch, model: nn.Module, pretrained_model_path, output_dir, metrics, device,logger,
                  multi_gpu=True, is_fp16=True, loss_scale=0, warmup_steps=0, fp16_opt_level='O1',
                  grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, adam_epsilon=1e-8, logging_steps=100):
         
@@ -103,6 +102,9 @@ class BertLearner(object):
         self.max_steps = -1
         self.weight_decay = 0.0
         self.model_type = data.model_type
+        
+        self.output_dir = output_dir
+        
         
         if self.multi_gpu:
             self.n_gpu = torch.cuda.device_count()
@@ -194,11 +196,17 @@ class BertLearner(object):
         
         return optimizer, scheduler
     
+    
     ### Train the model ###    
     def fit(self, epochs, lr, validate=True, schedule_type="warmup_cosine"):
-
+        
+        tensorboard_dir = self.output_dir/'tensorboard'
+        tensorboard_dir.mkdir(exist_ok=True)
+        print(tensorboard_dir)
+        
+        
         # Train the model
-        tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter(tensorboard_dir)
 
         train_dataloader = self.data.train_dl
         if self.max_steps > 0:
@@ -209,14 +217,23 @@ class BertLearner(object):
 
         # Prepare optimiser and schedule 
         optimizer, scheduler = self.get_optimizer(lr, t_total, schedule_type=schedule_type)
-
+        
+        # Prepare optimiser and schedule 
+        no_decay = ['bias', 'LayerNorm.weight']
+        
         if self.is_fp16:
             try:
                 from apex import amp
             except ImportError:
                 raise ImportError('Please install apex to use fp16 training')
             self.model, optimizer = amp.initialize(self.model, optimizer, opt_level=self.fp16_opt_level)
-
+        
+        scheduler = WarmupCosineSchedule(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
+        
+        # Parallelize the model architecture
+        if self.multi_gpu == True:
+            self.model = torch.nn.DataParallel(self.model)
+        
         # Start Training
         self.logger.info("***** Running training *****")
         self.logger.info("  Num examples = %d", len(train_dataloader.dataset))
@@ -264,25 +281,32 @@ class BertLearner(object):
                     global_step += 1
 
                     if self.logging_steps > 0 and global_step % self.logging_steps == 0:
-                        # Log metrics
-                        self.logger.info("lr after step {}: {}".format(global_step, scheduler.get_lr()[0]))
-                        self.logger.info("train_loss after step {}: {}".format(global_step, (tr_loss - logging_loss)/self.logging_steps))
-                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar('loss', (tr_loss - logging_loss)/self.logging_steps, global_step)
                         if validate:
                             # evaluate model
                             results = self.validate()
                             for key, value in results.items():
                                 tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
                                 self.logger.info("eval_{} after step {}: {}: ".format(key, global_step, value))
+                        
+                        # Log metrics
+                        self.logger.info("lr after step {}: {}".format(global_step, scheduler.get_lr()[0]))
+                        self.logger.info("train_loss after step {}: {}".format(global_step, (tr_loss - logging_loss)/self.logging_steps))
+                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar('loss', (tr_loss - logging_loss)/self.logging_steps, global_step)
 
                         
                         logging_loss = tr_loss
-
+            
+            # Evaluate the model after every epoch
+            if validate:
+                results = self.validate()
+                for key, value in results.items():
+                    self.logger.info("eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value))
+                
+                
+            
         tb_writer.close()
-        return global_step, tr_loss / global_step
-    
-    
+        return global_step, tr_loss / global_step   
     
     
     ### Evaluate the model    
@@ -295,7 +319,7 @@ class BertLearner(object):
         all_logits = None
         all_labels = None
         
-        self.model.eval()
+        
         eval_loss, eval_accuracy = 0, 0
         nb_eval_steps, nb_eval_examples = 0, 0
         
@@ -306,17 +330,22 @@ class BertLearner(object):
         validation_scores = {metric['name']: 0. for metric in self.metrics}
         
         for step, batch in enumerate(progress_bar(self.data.val_dl)):
+            self.model.eval()
             batch = tuple(t.to(self.device) for t in batch)
             
             with torch.no_grad():
                 inputs = {'input_ids':      batch[0],
                           'attention_mask': batch[1],
-                          'token_type_ids': batch[2], 
+                          'token_type_ids': batch[2] if self.model_type in ['bert', 'xlnet'] else None,  # XLM don't use segment_ids
                           'labels':         batch[3]}
                 outputs = self.model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
+            
                 
                 eval_loss += tmp_eval_loss.mean().item()
+            
+            nb_eval_steps += 1
+            nb_eval_examples += inputs['input_ids'].size(0)
                 
             
             if all_logits is None:
@@ -329,9 +358,7 @@ class BertLearner(object):
             else:   
                 all_labels =  torch.cat((all_labels, inputs['labels']), 0)
             
-            nb_eval_examples += inputs['input_ids'].size(0)
-            
-            nb_eval_steps += 1
+ 
             if preds is None:
                 preds = logits.detach().cpu().numpy()
                 out_label_ids = inputs['labels'].detach().cpu().numpy()
@@ -350,7 +377,11 @@ class BertLearner(object):
 
         return results
     
-    def save_model(self, path): 
+    def save_model(self): 
+        
+        path = self.output_dir/'model_out'
+        path.mkdir(exist_ok=True)
+        
         torch.cuda.empty_cache() 
         # Save a trained model
         model_to_save = self.model.module if hasattr(self.model, 'module') else self.model  # Only save the model it-self
@@ -358,43 +389,6 @@ class BertLearner(object):
         
         # save the tokenizer
         self.data.tokenizer.save_pretrained(path)
-
-        # Load a trained model that you have fine-tuned
-        model_state_dict = torch.load(output_model_file)
-        if self.multi_label:
-            self.model = BertForMultiLabelSequenceClassification.from_pretrained(self.pretrained_model_path, 
-                                                                  num_labels = len(self.data.labels), 
-                                                                  state_dict=model_state_dict)
-        else:
-            self.model = BertForSequenceClassification.from_pretrained(self.pretrained_model_path, 
-                                                                  num_labels = len(self.data.labels), 
-                                                                  state_dict=model_state_dict)
-
-        torch.cuda.empty_cache() 
-        self.model.to(self.device)
-    
-    def save_and_reload(self, path, model_name):
-        
-        torch.cuda.empty_cache() 
-        self.model.to('cpu')
-        # Save a trained model
-        model_to_save = self.model.module if hasattr(self.model, 'module') else self.model  # Only save the model it-self
-        output_model_file = os.path.join(path, "{}.bin".format(model_name))
-        torch.save(model_to_save.state_dict(), output_model_file)
-
-        # Load a trained model that you have fine-tuned
-        model_state_dict = torch.load(output_model_file)
-        if self.multi_label:
-            self.model = BertForMultiLabelSequenceClassification.from_pretrained(self.pretrained_model_path, 
-                                                                  num_labels = len(self.data.labels), 
-                                                                  state_dict=model_state_dict)
-        else:
-            self.model = BertForSequenceClassification.from_pretrained(self.pretrained_model_path, 
-                                                                  num_labels = len(self.data.labels), 
-                                                                  state_dict=model_state_dict)
-
-        torch.cuda.empty_cache() 
-        self.model.to(self.device)
     
     
     ### Return Predictions ###
@@ -410,19 +404,17 @@ class BertLearner(object):
         all_logits = None
 
         self.model.eval()
-
-        nb_eval_steps, nb_eval_examples = 0, 0
         for step, batch in enumerate(dl):
-            if len(batch) == 4:
-                input_ids, input_mask, segment_ids, _ = batch
-            else:
-                input_ids, input_mask, segment_ids = batch
-            input_ids = input_ids.to(self.device)
-            input_mask = input_mask.to(self.device)
-            segment_ids = segment_ids.to(self.device)
-
+            batch = tuple(t.to(self.device) for t in batch)
+            
+            inputs = {'input_ids':      batch[0],
+                      'attention_mask': batch[1],
+                      'token_type_ids': batch[2] if self.model_type in ['bert', 'xlnet'] else None,  # XLM don't use segment_ids
+                      'labels':         None }
+            
             with torch.no_grad():
-                logits = self.model(input_ids, segment_ids, input_mask)
+                outputs = self.model(**inputs)
+                logits = outputs[0]
                 if self.multi_label:
                     logits = logits.sigmoid()
                 else:
@@ -433,8 +425,6 @@ class BertLearner(object):
             else:
                 all_logits = np.concatenate((all_logits, logits.detach().cpu().numpy()), axis=0)
 
-            nb_eval_examples += input_ids.size(0)
-            nb_eval_steps += 1
 
         result_df =  pd.DataFrame(all_logits, columns=self.data.labels)
         results = result_df.to_dict('record')

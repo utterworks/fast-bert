@@ -162,12 +162,15 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
 
-        if output_mode == "classification":
-            label_id = label_map[example.label]
-        elif output_mode == "regression":
-            label_id = float(example.label)
+        if isinstance(example.label, list):
+            label_id = []
+            for label in example.label:
+                label_id.append(float(label))
         else:
-            raise KeyError(output_mode)
+            if example.label != None:
+                label_id = label_map[example.label]
+            else:
+                label_id = ''
 
         if ex_index < 5:
             if logger:
@@ -287,28 +290,18 @@ class BertDataBunch(object):
 
         test_examples = []
         input_data = []
-
+        
         for index, text in enumerate(texts):
             test_examples.append(InputExample(index, text, label=None))
             input_data.append({
                 'id': index,
                 'text': text
             })
-        test_features = convert_examples_to_features(test_examples, label_list=self.labels,
-                                                     tokenizer=self.tokenizer, max_seq_length=self.maxlen)
-
-        all_input_ids = torch.tensor(
-            [f.input_ids for f in test_features], dtype=torch.long)
-        all_input_mask = torch.tensor(
-            [f.input_mask for f in test_features], dtype=torch.long)
-        all_segment_ids = torch.tensor(
-            [f.segment_ids for f in test_features], dtype=torch.long)
-
-        test_data = TensorDataset(
-            all_input_ids, all_input_mask, all_segment_ids)
-
-        test_sampler = SequentialSampler(test_data)
-        return DataLoader(test_data, sampler=test_sampler, batch_size=self.bs)
+        
+        test_dataset = self.get_dataset_from_examples(test_examples, is_test=True)
+        
+        test_sampler = SequentialSampler(test_dataset)
+        return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu)
 
     def save(self, filename="databunch.pkl"):
         tmp_path = self.data_dir/'tmp'
@@ -359,10 +352,12 @@ class BertDataBunch(object):
                 all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
             else:
                 all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
+                
+            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
         else:
-            all_label_ids = None
-
-        dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+            all_label_ids = []
+            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids)
+        
         
         return dataset
         
