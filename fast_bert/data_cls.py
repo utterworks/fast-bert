@@ -175,17 +175,6 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
             else:
                 label_id = ''
 
-        if ex_index < 5:
-            if logger:
-                logger.info("*** Example ***")
-                logger.info("guid: %s" % (example.guid))
-                logger.info("tokens: %s" % " ".join(
-                        [str(x) for x in tokens]))
-                logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-                logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-                logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-                logger.info("label: {} (id = {})".format(example.label, label_id))
-
         features.append(
                 InputFeatures(input_ids=input_ids,
                               input_mask=input_mask,
@@ -289,7 +278,7 @@ class BertDataBunch(object):
 
     def __init__(self, data_dir, label_dir, tokenizer, train_file='train.csv', val_file='val.csv', test_data=None,
                  label_file='labels.csv', text_col='text', label_col='label', batch_size_per_gpu=16, max_seq_length=512,
-                 multi_gpu=True, multi_label=False, backend="nccl", model_type='bert', logger=None, clear_cache=False):
+                 multi_gpu=True, multi_label=False, backend="nccl", model_type='bert', logger=None, clear_cache=False, no_cache=False):
         
         if isinstance(tokenizer, str):
             _,_,tokenizer_class = MODEL_CLASSES[model_type]
@@ -306,6 +295,7 @@ class BertDataBunch(object):
         self.test_dl = None
         self.multi_label = multi_label
         self.n_gpu = 0
+        self.no_cache = no_cache
         self.model_type = model_type
         self.output_mode = 'classification'
         if logger is None:
@@ -361,7 +351,7 @@ class BertDataBunch(object):
                 })
 
 
-            test_dataset = self.get_dataset_from_examples(test_examples,'test', is_test=True)
+            test_dataset = self.get_dataset_from_examples(test_examples, 'test', is_test=True)
             
             self.test_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             test_sampler = SequentialSampler(test_dataset)
@@ -380,7 +370,7 @@ class BertDataBunch(object):
                 'text': text
             })
         
-        test_dataset = self.get_dataset_from_examples(test_examples, is_test=True)
+        test_dataset = self.get_dataset_from_examples(test_examples, 'test', is_test=True)
         
         test_sampler = SequentialSampler(test_dataset)
         return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu)
@@ -414,8 +404,9 @@ class BertDataBunch(object):
                     logger=self.logger)
             
             self.cache_dir.mkdir(exist_ok=True)  # Creaet folder if it doesn't exist
-            self.logger.info("Saving features into cached file %s", cached_features_file)
-            torch.save(features, cached_features_file)
+            if self.no_cache == False:
+                self.logger.info("Saving features into cached file %s", cached_features_file)
+                torch.save(features, cached_features_file)
 
         # Convert to Tensors and build dataset
         all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
