@@ -3,6 +3,9 @@ import os
 import torch
 from pathlib import Path
 import pickle
+import logging
+
+import shutil
 
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -181,7 +184,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
                 logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
                 logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
                 logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-                logger.info("label: %s (id = %d)" % (example.label, label_id))
+                logger.info("label: {} (id = {})".format(example.label, label_id))
 
         features.append(
                 InputFeatures(input_ids=input_ids,
@@ -209,8 +212,6 @@ class DataProcessor(object):
     def get_labels(self):
         """Gets the list of labels for this data set."""
         raise NotImplementedError()
-
-
 
 
 class TextProcessor(DataProcessor):
@@ -286,85 +287,9 @@ class MultiLabelTextProcessor(TextProcessor):
 
 class BertDataBunch(object):
 
-    def get_dl_from_texts(self, texts):
-
-        test_examples = []
-        input_data = []
-        
-        for index, text in enumerate(texts):
-            test_examples.append(InputExample(index, text, label=None))
-            input_data.append({
-                'id': index,
-                'text': text
-            })
-        
-        test_dataset = self.get_dataset_from_examples(test_examples, is_test=True)
-        
-        test_sampler = SequentialSampler(test_dataset)
-        return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu)
-
-    def save(self, filename="databunch.pkl"):
-        tmp_path = self.data_dir/'tmp'
-        tmp_path.mkdir(exist_ok=True)
-        with open(str(tmp_path/filename), "wb") as f:
-            pickle.dump(self, f)
-
-    @staticmethod
-    def load(data_dir, backend='nccl', filename="databunch.pkl"):
-
-        try:
-            torch.distributed.init_process_group(backend=backend,
-                                                 init_method="tcp://localhost:23459",
-                                                 rank=0, world_size=1)
-        except:
-            pass
-
-        tmp_path = data_dir/'tmp'
-        with open(str(tmp_path/filename), "rb") as f:
-            databunch = pickle.load(f)
-
-        return databunch
-    
-    def get_dataset_from_examples(self, examples, is_test=False):
-                 
-        # Create tokenized and numericalized features 
-        features = convert_examples_to_features(
-                examples, 
-                label_list=self.labels, 
-                max_seq_length=self.max_seq_length, 
-                tokenizer=self.tokenizer, 
-                output_mode=self.output_mode,
-                cls_token_at_end=bool(self.model_type in ['xlnet']), # xlnet has a cls token at the end
-                cls_token=self.tokenizer.cls_token,
-                sep_token=self.tokenizer.sep_token,
-                cls_token_segment_id=2 if self.model_type in ['xlnet'] else 0,
-                pad_on_left=bool(self.model_type in ['xlnet']),                 # pad on the left for xlnet
-                pad_token_segment_id=4 if self.model_type in ['xlnet'] else 0,
-                logger=self.logger)
-
-        # Convert to Tensors and build dataset
-        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-        
-        if is_test == False: # labels not available for test set
-            if self.multi_label:
-                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
-            else:
-                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
-                
-            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-        else:
-            all_label_ids = []
-            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids)
-        
-        
-        return dataset
-        
-
     def __init__(self, data_dir, label_dir, tokenizer, train_file='train.csv', val_file='val.csv', test_data=None,
                  label_file='labels.csv', text_col='text', label_col='label', batch_size_per_gpu=16, max_seq_length=512,
-                 multi_gpu=True, multi_label=False, backend="nccl", model_type='bert', logger=None):
+                 multi_gpu=True, multi_label=False, backend="nccl", model_type='bert', logger=None, clear_cache=False):
         
         if isinstance(tokenizer, str):
             _,_,tokenizer_class = MODEL_CLASSES[model_type]
@@ -373,6 +298,7 @@ class BertDataBunch(object):
 
         self.tokenizer = tokenizer  
         self.data_dir = data_dir
+        self.cache_dir = data_dir/'cache'    
         self.max_seq_length = max_seq_length
         self.batch_size_per_gpu = batch_size_per_gpu
         self.train_dl = None
@@ -382,23 +308,28 @@ class BertDataBunch(object):
         self.n_gpu = 0
         self.model_type = model_type
         self.output_mode = 'classification'
+        if logger is None:
+            logger = logging.getLogger()
         self.logger = logger
         if multi_gpu:
             self.n_gpu = torch.cuda.device_count()
-
+        
+        if clear_cache:
+            shutil.rmtree(self.cache_dir, ignore_errors=True)
+            
         if multi_label:
             processor = MultiLabelTextProcessor(data_dir, label_dir)
         else:
             processor = TextProcessor(data_dir, label_dir)
 
         self.labels = processor.get_labels(label_file)
-
+        
         if train_file:
             # Train DataLoader
             train_examples = processor.get_train_examples(
                 train_file, text_col=text_col, label_col=label_col)  
 
-            train_dataset = self.get_dataset_from_examples(train_examples)
+            train_dataset = self.get_dataset_from_examples(train_examples, 'train')
 
             self.train_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             train_sampler = RandomSampler(train_dataset)
@@ -410,7 +341,7 @@ class BertDataBunch(object):
             val_examples = processor.get_dev_examples(
                 val_file, text_col=text_col, label_col=label_col)
             
-            val_dataset = self.get_dataset_from_examples(val_examples)
+            val_dataset = self.get_dataset_from_examples(val_examples, 'dev')
             
             self.val_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             val_sampler = SequentialSampler(val_dataset) 
@@ -430,8 +361,77 @@ class BertDataBunch(object):
                 })
 
 
-            test_dataset = self.get_dataset_from_examples(test_examples, is_test=True)
+            test_dataset = self.get_dataset_from_examples(test_examples,'test', is_test=True)
             
             self.test_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             test_sampler = SequentialSampler(test_dataset)
             self.test_dl = DataLoader(test_dataset, sampler=test_sampler, batch_size=self.test_batch_size)
+
+    
+    def get_dl_from_texts(self, texts):
+
+        test_examples = []
+        input_data = []
+        
+        for index, text in enumerate(texts):
+            test_examples.append(InputExample(index, text, label=None))
+            input_data.append({
+                'id': index,
+                'text': text
+            })
+        
+        test_dataset = self.get_dataset_from_examples(test_examples, is_test=True)
+        
+        test_sampler = SequentialSampler(test_dataset)
+        return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu)
+
+    
+    def get_dataset_from_examples(self, examples, set_type='train', is_test=False):
+        
+        
+        cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}'.format(
+            set_type,
+            'multi_label' if self.multi_label else 'multi_class',
+            str(self.max_seq_length)))
+        
+        if os.path.exists(cached_features_file):
+            self.logger.info("Loading features from cached file %s", cached_features_file)
+            features = torch.load(cached_features_file)
+        else:
+            # Create tokenized and numericalized features 
+            features = convert_examples_to_features(
+                    examples, 
+                    label_list=self.labels, 
+                    max_seq_length=self.max_seq_length, 
+                    tokenizer=self.tokenizer, 
+                    output_mode=self.output_mode,
+                    cls_token_at_end=bool(self.model_type in ['xlnet']), # xlnet has a cls token at the end
+                    cls_token=self.tokenizer.cls_token,
+                    sep_token=self.tokenizer.sep_token,
+                    cls_token_segment_id=2 if self.model_type in ['xlnet'] else 0,
+                    pad_on_left=bool(self.model_type in ['xlnet']),                 # pad on the left for xlnet
+                    pad_token_segment_id=4 if self.model_type in ['xlnet'] else 0,
+                    logger=self.logger)
+            
+            self.cache_dir.mkdir(exist_ok=True)  # Creaet folder if it doesn't exist
+            self.logger.info("Saving features into cached file %s", cached_features_file)
+            torch.save(features, cached_features_file)
+
+        # Convert to Tensors and build dataset
+        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+        
+        if is_test == False: # labels not available for test set
+            if self.multi_label:
+                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
+            else:
+                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
+                
+            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+        else:
+            all_label_ids = []
+            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids)
+        
+        
+        return dataset

@@ -1,6 +1,6 @@
 import os
 from .data import BertDataBunch, InputExample, InputFeatures
-from .modeling import BertForMultiLabelSequenceClassification
+from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification
 
 from pathlib import Path
 
@@ -20,7 +20,7 @@ from pytorch_transformers import WarmupCosineSchedule, WarmupConstantSchedule, W
 
 MODEL_CLASSES = {
     'bert': (BertConfig, (BertForSequenceClassification, BertForMultiLabelSequenceClassification), BertTokenizer),
-    'xlnet': (XLNetConfig, (XLNetForSequenceClassification, XLNetForSequenceClassification), XLNetTokenizer),
+    'xlnet': (XLNetConfig, (XLNetForSequenceClassification, XLNetForMultiLabelSequenceClassification), XLNetTokenizer),
     'xlm': (XLMConfig, (XLMForSequenceClassification, XLMForSequenceClassification), XLMTokenizer)
 }
 
