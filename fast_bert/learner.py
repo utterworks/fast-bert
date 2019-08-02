@@ -37,7 +37,23 @@ try:
     from apex.normalization.fused_layer_norm import FusedLayerNorm
 except:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
-    
+
+
+def warmup_linear(x, warmup=0.002):
+    if x < warmup:
+        return x/warmup
+    return 1.0 - x
+
+SCHEDULES = {
+    None:       ConstantLR,
+    "none":     ConstantLR,
+    "warmup_cosine": WarmupCosineSchedule,
+    "warmup_constant": WarmupConstantSchedule,
+    "warmup_linear": WarmupLinearSchedule,
+    "warmup_cosine_warmup_restarts": WarmupCosineWithWarmupRestartsSchedule,
+    "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
+}
+
 
 class Learner(object):
     
