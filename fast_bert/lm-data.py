@@ -2,7 +2,7 @@ import logger
 import pandas as pd
 import os
 import random
-from pytorch_pretrained_bert.tokenization import BertTokenizer
+from pytorch_transformers import BertTokenizer
 import torch
 from pathlib import Path
 

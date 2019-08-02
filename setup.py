@@ -2,7 +2,7 @@ from io import open
 from setuptools import setup, find_packages
 
 setup(name='fast_bert',
-      version='0.1.4',
+      version='1.0.0',
       description='AI Library using BERT',
       author='Kaushal Trivedi',
       author_email='kaushaltrivedi@me.com',
@@ -14,7 +14,7 @@ setup(name='fast_bert',
       packages=find_packages(exclude=["*.tests", "*.tests.*",
                                       "tests.*", "tests"]),
       install_requires=[
-          'pytorch-pretrained-bert==0.6.2',
+          'pytorch-transformers>=1.0.0',
           'fastai'
       ],
       classifiers=[
