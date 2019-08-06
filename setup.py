@@ -15,7 +15,8 @@ setup(name='fast_bert',
                                       "tests.*", "tests"]),
       install_requires=[
           'pytorch-transformers>=1.0.0',
-          'fastai'
+          'fastai',
+          'tensorboardX'
       ],
       classifiers=[
           'Intended Audience :: Science/Research',

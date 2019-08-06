@@ -17,8 +17,8 @@ from pytorch_pretrained_bert.optimization import BertAdam
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 
 from fast_bert.modeling import BertForMultiLabelSequenceClassification
-from fast_bert.data_cls import BertDataBunch, InputExample, InputFeatures, MultiLabelTextProcessor, convert_examples_to_features
-from fast_bert.learner_cls import BertLearner
+from fast_bert.data import BertDataBunch, InputExample, InputFeatures, MultiLabelTextProcessor, convert_examples_to_features
+from fast_bert.learner import BertLearner
 from fast_bert.metrics import accuracy, accuracy_multilabel, accuracy_thresh, fbeta, roc_auc
 
 run_start_time = datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
