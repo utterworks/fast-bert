@@ -35,26 +35,6 @@ MODEL_PATH=PATH/'pytorch_model.bin'
 class ScoringService(object):
     model = None                # Where we keep the model when it's loaded
     
-    @classmethod
-    def get_model(cls):
-        """Get the model object for this instance, loading it if it's not already loaded."""
-        if cls.model == None:
-            tokenizer = BertTokenizer.from_pretrained(BERT_PRETRAINED_PATH, do_lower_case=True)
-            if torch.cuda.is_available():
-                device = torch.device('cuda')
-            else:
-                device = torch.device('cpu')
-            
-            print(device)
-            
-            databunch = BertDataBunch(PATH, PATH, tokenizer, train_file=None, val_file=None,
-                                      bs=32, maxlen=512, multi_gpu=False, multi_label=False)
-            cls.model = BertLearner.from_pretrained_model(databunch, BERT_PRETRAINED_PATH, [], device, None, 
-                                                          finetuned_wgts_path=MODEL_PATH, 
-                                                          is_fp16=False, loss_scale=128, multi_label=False)
-            
-                
-        return cls.model
     
     @classmethod
     def get_predictor_model(cls):
@@ -64,9 +44,13 @@ class ScoringService(object):
         if cls.model == None:
             with open(PATH/'model_config.json') as f:
                 model_config = json.load(f)
+                
+            predictor = BertClassificationPredictor(PATH/'model_out', label_path=PATH, )
             
-            predictor = BertClassificationPredictor(model_path=None, pretrained_path=PATH, 
-                                                    label_path=PATH, multi_label=model_config['multi_label'])
+            predictor = BertClassificationPredictor(PATH/'model_out', label_path=PATH, 
+                                                    multi_label=bool(model_config['multi_label']), 
+                                                    model_type=model_config['model_type'],
+                                                    do_lower_case=bool(model_config['do_lower_case']))
             cls.model = predictor
         
         return cls.model
@@ -81,7 +65,7 @@ class ScoringService(object):
         if bing_key:
             spellChecker = BingSpellCheck(bing_key)
             text = spellChecker.spell_check(text)
-        prediction = predictor_model.predict_batch([text])[0]
+        prediction = predictor_model.predict(text)
 
         return prediction
     

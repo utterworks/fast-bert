@@ -19,8 +19,8 @@ then
     exit 255
 fi
 
-chmod +x bert/train
-chmod +x bert/serve
+chmod +x bert/train.py
+chmod +x bert/serve.py
 
 # Get the region defined in the current configuration (default to us-west-2 if none defined)
 region=$(aws configure get region)

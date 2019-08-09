@@ -60,11 +60,13 @@ class BertLearner(object):
            
         if finetuned_wgts_path:
             model_state_dict = torch.load(finetuned_wgts_path)
+        else:
+            model_state_dict = None
         
         if multi_label == True:
-            model = model_class[1].from_pretrained(pretrained_path, config=config)
+            model = model_class[1].from_pretrained(pretrained_path, config=config, state_dict=model_state_dict)
         else:
-            model = model_class[0].from_pretrained(pretrained_path, config=config)
+            model = model_class[0].from_pretrained(pretrained_path, config=config, state_dict=model_state_dict)
         
         device_id = torch.cuda.current_device() 
         model.to(device)

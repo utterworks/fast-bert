@@ -1,7 +1,7 @@
 FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
 #FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04
-#FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
+#FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 ARG ARCH=gpu
 
 ARG py_version=3
@@ -44,11 +44,17 @@ RUN pip install --upgrade pip
 
 RUN pip install --upgrade torch torchvision
 
+#RUN pip install https://download.pytorch.org/whl/cu100/torch-1.1.0-cp37-cp37m-linux_x86_64.whl
+#RUN pip install https://download.pytorch.org/whl/cu100/torchvision-0.3.0-cp37-cp37m-linux_x86_64.whl
+
 # Python won’t try to write .pyc or .pyo files on the import of source modules
 # Force stdin, stdout and stderr to be totally unbuffered. Good for logging
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONIOENCODING=UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8
 
-#ENV CUDA_HOME="/usr/local/cuda-10.1"
+#ENV CUDA_HOME="/usr/local/cuda"
+
+RUN nvcc --version
+RUN which nvcc
 
 RUN pip --no-cache-dir install \
         flask \
@@ -60,15 +66,25 @@ RUN pip --no-cache-dir install \
         pandas \
         Pillow \
         h5py \
-        fastprogress
+        fastprogress \
+        python-box \
+        tensorboardX
 
 
+RUN ls
 RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 
-RUN pip install fast-bert==0.1.4
+RUN pip install git+https://github.com/kaushaltrivedi/fast-bert.git
 
 ENV PATH="/opt/ml/code:${PATH}"
 COPY /bert /opt/ml/code
+# COPY ./pretrained_models /opt/ml/code 
+
 WORKDIR /opt/ml/code
+
+RUN cd $WORKDIR
+
+RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased xlnet-base-cased
+
 
 

@@ -47,7 +47,7 @@ do
     echo "Building image with arch=${arch}, region=${region}"
     TAG="${FASTAI_VERSION}-${arch}-${PY_VERSION}"
     FULLNAME="${account}.dkr.ecr.${region}.amazonaws.com/${IMAGE}:${TAG}"
-    docker build -t ${IMAGE}:${TAG} --no-cache --build-arg ARCH="$arch" -f "Dockerfile_${arch}" .
+    docker build -t ${IMAGE}:${TAG} --build-arg ARCH="$arch" -f "Dockerfile_${arch}" .
     docker tag ${IMAGE}:${TAG} ${FULLNAME}
     docker push ${FULLNAME}
 done

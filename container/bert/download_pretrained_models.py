@@ -86,7 +86,7 @@ def download_pretrained_files(model_name, location: Path, model_type='bert'):
     try:
         file_path = PRETRAINED_VOCAB_FILES_MAP[model_name]
         print(file_path)
-        file_name = Path(file_path).parts[-1]
+        file_name = 'vocab.txt' if model_type == 'bert' else 'spiece.model'
         target_path = location/file_name
         http_get(file_path, target_path)
 
@@ -97,7 +97,7 @@ def download_pretrained_files(model_name, location: Path, model_type='bert'):
     try:
         file_path = BERT_PRETRAINED_MODEL_ARCHIVE_MAP[model_name]
         print(file_path)
-        file_name = Path(file_path).parts[-1]
+        file_name = 'pytorch_model.bin'
         target_path = location/file_name
         http_get(file_path, target_path)
 
@@ -108,7 +108,7 @@ def download_pretrained_files(model_name, location: Path, model_type='bert'):
     try:
         file_path = BERT_PRETRAINED_CONFIG_ARCHIVE_MAP[model_name]
         print(file_path)
-        file_name = Path(file_path).parts[-1]
+        file_name = 'config.json'
         target_path = location/file_name
         http_get(file_path, target_path)
 
@@ -121,13 +121,18 @@ def main():
 
     parser.add_argument("--location_dir", default=None, type=str, required=True,
                         help="The location where pretrained model needs to be stored")
+    
+    parser.add_argument("--models", default=None, type=str, required=True, nargs='*',
+                        help="download the pretrained models")
 
     args = parser.parse_args()
     print(args)
     Path(args.location_dir).mkdir(exist_ok=True)
-
-    [download_pretrained_files(k, location=Path(args.location_dir))
-     for k, v in BERT_PRETRAINED_MODEL_ARCHIVE_MAP.items()]
+    
+    models = args.models
+#    [download_pretrained_files(k, location=Path(args.location_dir))
+#     for k, v in BERT_PRETRAINED_MODEL_ARCHIVE_MAP.items()]
+    [download_pretrained_files(item, location=Path(args.location_dir)) for item in args.models]
 
 
 if __name__ == "__main__":
