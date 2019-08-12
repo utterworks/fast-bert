@@ -230,7 +230,7 @@ class BertLearner(object):
                 raise ImportError('Please install apex to use fp16 training')
             self.model, optimizer = amp.initialize(self.model, optimizer, opt_level=self.fp16_opt_level)
         
-        scheduler = WarmupCosineSchedule(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
+        #scheduler = WarmupCosineSchedule(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
         
         # Parallelize the model architecture
         if self.multi_gpu == True:

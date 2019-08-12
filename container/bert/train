@@ -94,7 +94,9 @@ def train():
         finetuned_model_name = training_config.get('finetuned_model', None)
         if finetuned_model_name is not None:
             finetuned_model = os.path.join(finetuned_path, finetuned_model_name)
+            logger.info("finetuned model loaded from {}".format(finetuned_model))
         else:
+            logger.info("finetuned model not available - loading standard pretrained model")
             finetuned_model = None
             
         # Tokenizer
