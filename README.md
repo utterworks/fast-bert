@@ -1,6 +1,10 @@
 # Fast-Bert
 
 **_ NEW _**
+
+**Now supports LAMB optimizer for faster training.**
+Please refer to https://arxiv.org/abs/1904.00962 for the paper on LAMB optimizer.
+
 **Now supports BERT and XLNet for both Multi-Class and Multi-Label text classification.**
 
 Fast-Bert is the deep learning library that allows developers and data scientists to train and deploy BERT and XLNet based models for natural language processing tasks beginning with Text Classification.
@@ -175,8 +179,11 @@ learner = BertLearner.from_pretrained_model(
 learner.fit(epochs=6,
 			lr=6e-5,
 			validate=True. 	# Evaluate the model after each epoch
-			schedule_type="warmup_cosine")
+			schedule_type="warmup_cosine",
+			optimizer_type="lamb")
 ```
+
+Fast-Bert now supports LAMB optmizer. Due to the speed of training, we have set LAMB as the default optimizer. You can switch back to AdamW by setting optimizer_type to 'adamw'.
 
 ### 4. Save trained model artifacts
 
