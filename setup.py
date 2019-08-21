@@ -16,6 +16,7 @@ setup(name='fast_bert',
       install_requires=[
           'pytorch-transformers>=1.0.0',
           'fastai',
+          'pytorch-lamb',
           'tensorboardX'
       ],
       classifiers=[

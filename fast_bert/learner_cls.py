@@ -16,6 +16,8 @@ from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
                                   XLNetForSequenceClassification,
                                   XLNetTokenizer)
 
+from pytorch_lamb import Lamb
+
 from pytorch_transformers import WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithHardRestartsSchedule
 
 MODEL_CLASSES = {
@@ -171,7 +173,7 @@ class BertLearner(object):
     
 
     
-    def get_optimizer(self, lr, t_total, schedule_type='warmup_linear'):   
+    def get_optimizer(self, lr, t_total, schedule_type='warmup_linear', optimizer_type='lamb'):   
         
         SCHEDULES = {
             None:       ConstantLRSchedule,
@@ -190,7 +192,11 @@ class BertLearner(object):
             {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
         
-        optimizer = AdamW(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
+        if optimizer_type == 'lamb':
+            optimizer = Lamb(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
+        elif optimizer_type == 'adamw':
+            optimizer = AdamW(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
+        
         
         schedule_class = SCHEDULES[schedule_type]
 
@@ -200,7 +206,7 @@ class BertLearner(object):
     
     
     ### Train the model ###    
-    def fit(self, epochs, lr, validate=True, schedule_type="warmup_cosine"):
+    def fit(self, epochs, lr, validate=True, schedule_type="warmup_cosine", optimizer_type='lamb'):
         
         tensorboard_dir = self.output_dir/'tensorboard'
         tensorboard_dir.mkdir(exist_ok=True)
@@ -218,7 +224,8 @@ class BertLearner(object):
             t_total = len(train_dataloader) // self.grad_accumulation_steps * epochs
 
         # Prepare optimiser and schedule 
-        optimizer, scheduler = self.get_optimizer(lr, t_total, schedule_type=schedule_type)
+        optimizer, scheduler = self.get_optimizer(lr, t_total, 
+                                                  schedule_type=schedule_type, optimizer_type=optimizer_type)
         
         # Prepare optimiser and schedule 
         no_decay = ['bias', 'LayerNorm.weight']
