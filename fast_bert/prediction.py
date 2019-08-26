@@ -3,14 +3,13 @@ import torch
 from pytorch_transformers import BertTokenizer
 from .data_cls import BertDataBunch
 from .learner_cls import BertLearner
-from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification
+from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification
 
-from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
-                                  BertForSequenceClassification, BertTokenizer,
-                                  XLMConfig, XLMForSequenceClassification,
-                                  XLMTokenizer, XLNetConfig,
-                                  XLNetForSequenceClassification,
-                                  XLNetTokenizer)
+from pytorch_transformers import (WEIGHTS_NAME, 
+                                  BertConfig, BertForSequenceClassification, BertTokenizer,
+                                  XLMConfig, XLMForSequenceClassification, XLMTokenizer, 
+                                  XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer,
+                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 
 import warnings
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
@@ -19,7 +18,8 @@ warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 MODEL_CLASSES = {
     'bert': (BertConfig, (BertForSequenceClassification, BertForMultiLabelSequenceClassification), BertTokenizer),
     'xlnet': (XLNetConfig, (XLNetForSequenceClassification, XLNetForMultiLabelSequenceClassification), XLNetTokenizer),
-    'xlm': (XLMConfig, (XLMForSequenceClassification, XLMForSequenceClassification), XLMTokenizer)
+    'xlm': (XLMConfig, (XLMForSequenceClassification, XLMForSequenceClassification), XLMTokenizer),
+    'roberta': (RobertaConfig, (RobertaForSequenceClassification, RobertaForMultiLabelSequenceClassification), RobertaTokenizer)
 }
 
 
@@ -46,13 +46,15 @@ class BertClassificationPredictor(object):
         else:
             device = torch.device('cpu')
 
-        databunch = BertDataBunch(self.label_path, self.label_path, tokenizer, train_file=None, val_file=None,
+        databunch = BertDataBunch(self.label_path, self.label_path, tokenizer, 
+                                  train_file=None, val_file=None,
                                   batch_size_per_gpu=32, max_seq_length=512,
-                                  multi_gpu=False, multi_label=self.multi_label, model_type=self.model_type, no_cache=True)
+                                  multi_gpu=False, multi_label=self.multi_label,
+                                  model_type=self.model_type, no_cache=True)
 
         learner = BertLearner.from_pretrained_model(databunch, self.model_path, metrics=[],
-                                                    device=device, logger=None, output_dir=None, warmup_steps=0,
-                                                    multi_gpu=False, is_fp16=False,
+                                                    device=device, logger=None, output_dir=None,
+                                                    warmup_steps=0, multi_gpu=False, is_fp16=False,
                                                     multi_label=self.multi_label, logging_steps=0)
 
         return learner

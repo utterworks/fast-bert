@@ -15,12 +15,14 @@ from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
                                   XLMConfig, XLMForSequenceClassification,
                                   XLMTokenizer, XLNetConfig,
                                   XLNetForSequenceClassification,
-                                  XLNetTokenizer)
+                                  XLNetTokenizer,
+                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 
 MODEL_CLASSES = {
     'bert': (BertConfig, BertForSequenceClassification, BertTokenizer),
     'xlnet': (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
-    'xlm': (XLMConfig, XLMForSequenceClassification, XLMTokenizer)
+    'xlm': (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
+    'roberta': (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 }
 
 class InputExample(object):
@@ -316,8 +318,16 @@ class BertDataBunch(object):
         
         if train_file:
             # Train DataLoader
-            train_examples = processor.get_train_examples(
-                train_file, text_col=text_col, label_col=label_col)  
+            train_examples = None
+            cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
+                                    self.model_type,
+                                    'train',
+                                    'multi_label' if self.multi_label else 'multi_class',
+                                    str(self.max_seq_length)))
+        
+            if os.path.exists(cached_features_file) == False:
+                train_examples = processor.get_train_examples(
+                    train_file, text_col=text_col, label_col=label_col)  
 
             train_dataset = self.get_dataset_from_examples(train_examples, 'train')
 
@@ -328,8 +338,16 @@ class BertDataBunch(object):
 
         if val_file:
             # Validation DataLoader
-            val_examples = processor.get_dev_examples(
-                val_file, text_col=text_col, label_col=label_col)
+            val_examples = None
+            cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
+                                    self.model_type,
+                                    'dev',
+                                    'multi_label' if self.multi_label else 'multi_class',
+                                    str(self.max_seq_length)))
+            
+            if os.path.exists(cached_features_file) == False:
+                val_examples = processor.get_dev_examples(
+                    val_file, text_col=text_col, label_col=label_col)
             
             val_dataset = self.get_dataset_from_examples(val_examples, 'dev')
             
@@ -379,7 +397,8 @@ class BertDataBunch(object):
     def get_dataset_from_examples(self, examples, set_type='train', is_test=False):
         
         
-        cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}'.format(
+        cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
+            self.model_type,
             set_type,
             'multi_label' if self.multi_label else 'multi_class',
             str(self.max_seq_length)))

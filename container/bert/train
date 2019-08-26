@@ -12,7 +12,7 @@ import logging
 
 import torch
 
-from pytorch_transformers import BertTokenizer, XLNetTokenizer
+from pytorch_transformers import BertTokenizer, XLNetTokenizer, RobertaTokenizer
 
 
 from fast_bert.data_cls import BertDataBunch
@@ -102,8 +102,11 @@ def train():
         # Tokenizer
         if training_config['model_type'] == 'bert':
             tokenizer = BertTokenizer.from_pretrained(PRETRAINED_PATH, do_lower_case=bool(training_config['do_lower_case']))
+        elif training_config['model_type'] == 'roberta':
+            tokenizer = RobertaTokenizer.from_pretrained(PRETRAINED_PATH, do_lower_case=bool(training_config['do_lower_case']))
         elif training_config['model_type'] == 'xlnet':
             tokenizer = XLNetTokenizer.from_pretrained(PRETRAINED_PATH, do_lower_case=bool(training_config['do_lower_case']))
+
         
         device = torch.device('cuda')
         if torch.cuda.device_count() > 1:
@@ -152,7 +155,7 @@ def train():
                                             multi_gpu=multi_gpu,  multi_label=bool(training_config['multi_label']),
                                             logging_steps=int(training_config['logging_steps']))
         
-        learner.fit(int(hyperparameters['epochs']), float(hyperparameters['lr']), schedule_type=hyperparameters['lr_schedule'])
+        learner.fit(int(hyperparameters['epochs']), float(hyperparameters['lr']), schedule_type=hyperparameters['lr_schedule'], optimizer_type=hyperparameters['optimizer_type'])
         
         # save model and tokenizer artefacts
         learner.save_model()

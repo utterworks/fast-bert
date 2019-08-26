@@ -21,7 +21,17 @@ PRETRAINED_VOCAB_FILES_MAP = {
     'bert-base-cased-finetuned-mrpc': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-cased-finetuned-mrpc-vocab.txt",
     # XLNet
     'xlnet-base-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-base-cased-spiece.model",
-    'xlnet-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-spiece.model"
+    'xlnet-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-spiece.model",
+    # ROBERTA
+    'roberta-base': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-vocab.json",
+    'roberta-large': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-vocab.json",
+    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-vocab.json" 
+}
+
+PRETRAINED_VOCAB_MERGES_MAP = {
+    'roberta-base': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-merges.txt",
+    'roberta-large': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-merges.txt",
+    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-merges.txt",
 }
 
 BERT_PRETRAINED_MODEL_ARCHIVE_MAP = {
@@ -41,7 +51,11 @@ BERT_PRETRAINED_MODEL_ARCHIVE_MAP = {
     'bert-base-cased-finetuned-mrpc': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-cased-finetuned-mrpc-pytorch_model.bin",
     # XLNet
     'xlnet-base-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-base-cased-pytorch_model.bin",
-    'xlnet-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-pytorch_model.bin"
+    'xlnet-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-pytorch_model.bin",
+    # ROBERTA
+    'roberta-base': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-pytorch_model.bin",
+    'roberta-large': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-pytorch_model.bin",
+    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-pytorch_model.bin"
 }
 
 BERT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
@@ -61,7 +75,11 @@ BERT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     'bert-base-cased-finetuned-mrpc': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-cased-finetuned-mrpc-config.json",
     # XLNet
     'xlnet-base-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-base-cased-config.json",
-    'xlnet-large-cased': "https: // s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-config.json"
+    'xlnet-large-cased': "https: // s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-config.json",
+    # ROBERTA
+    'roberta-base': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-config.json",
+    'roberta-large': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-config.json",
+    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-config.json"
 }
 
 
@@ -78,20 +96,38 @@ def http_get(url, target):
     progress.close()
 
 
-def download_pretrained_files(model_name, location: Path, model_type='bert'):
-
+def download_pretrained_files(model_name, location: Path):
+    model_type = model_name.split('-')[0]
     location = location/model_name
     location.mkdir(exist_ok=True)
     # download vocab files
     try:
         file_path = PRETRAINED_VOCAB_FILES_MAP[model_name]
         print(file_path)
-        file_name = 'vocab.txt' if model_type == 'bert' else 'spiece.model'
+        if model_type == 'bert':
+            file_name = 'vocab.txt'
+        elif model_type == 'xlnet':
+            file_name = 'spiece.model'
+        elif model_type == 'roberta':
+            file_name = 'vocab.json'
+        
         target_path = location/file_name
         http_get(file_path, target_path)
 
     except:
-        print("error downloading model config for {}".format(model_name))
+        print("error downloading model vocab for {}".format(model_name))
+        
+    # download vocab merge file for Roberta
+    if model_type == 'roberta':
+        try:
+            file_path = PRETRAINED_VOCAB_MERGES_MAP[model_name]
+            print(file_path)
+            file_name = 'merges.txt'
+            target_path = location/file_name
+            http_get(file_path, target_path)
+
+        except:
+            print("error downloading model merge file for {}".format(model_name))
 
     # download model files
     try:
@@ -102,7 +138,7 @@ def download_pretrained_files(model_name, location: Path, model_type='bert'):
         http_get(file_path, target_path)
 
     except:
-        print("error downloading model config for {}".format(model_name))
+        print("error downloading model file for {}".format(model_name))
 
     # download config files
     try:

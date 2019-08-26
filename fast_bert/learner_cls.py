@@ -1,6 +1,6 @@
 import os
 from .data import BertDataBunch, InputExample, InputFeatures
-from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification
+from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification
 
 from pathlib import Path
 
@@ -14,7 +14,8 @@ from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
                                   XLMConfig, XLMForSequenceClassification,
                                   XLMTokenizer, XLNetConfig,
                                   XLNetForSequenceClassification,
-                                  XLNetTokenizer)
+                                  XLNetTokenizer, 
+                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 
 from pytorch_lamb import Lamb
 
@@ -23,7 +24,8 @@ from pytorch_transformers import WarmupCosineSchedule, WarmupConstantSchedule, W
 MODEL_CLASSES = {
     'bert': (BertConfig, (BertForSequenceClassification, BertForMultiLabelSequenceClassification), BertTokenizer),
     'xlnet': (XLNetConfig, (XLNetForSequenceClassification, XLNetForMultiLabelSequenceClassification), XLNetTokenizer),
-    'xlm': (XLMConfig, (XLMForSequenceClassification, XLMForSequenceClassification), XLMTokenizer)
+    'xlm': (XLMConfig, (XLMForSequenceClassification, XLMForSequenceClassification), XLMTokenizer),
+    'roberta': (RobertaConfig, (RobertaForSequenceClassification, RobertaForMultiLabelSequenceClassification), RobertaTokenizer)
 }
 
 
@@ -264,7 +266,7 @@ class BertLearner(object):
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = {'input_ids':      batch[0],
                           'attention_mask': batch[1],
-                          'token_type_ids': batch[2] if self.model_type in ['bert', 'xlnet'] else None,  # XLM don't use segment_ids
+                          'token_type_ids': batch[2] if self.model_type in ['bert', 'xlnet', 'roberta'] else None,  # XLM don't use segment_ids
                           'labels':         batch[3]}
                 outputs = self.model(**inputs)
                 loss = outputs[0]  # model outputs are always tuple in pytorch-transformers (see doc)

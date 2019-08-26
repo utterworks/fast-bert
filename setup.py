@@ -14,7 +14,7 @@ setup(name='fast_bert',
       packages=find_packages(exclude=["*.tests", "*.tests.*",
                                       "tests.*", "tests"]),
       install_requires=[
-          'pytorch-transformers>=1.0.0',
+          'pytorch-transformers>=1.1.0',
           'fastai',
           'pytorch-lamb',
           'tensorboardX'
