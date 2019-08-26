@@ -74,7 +74,7 @@ RUN pip --no-cache-dir install \
 RUN ls
 RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 
-RUN pip install git+https://github.com/kaushaltrivedi/fast-bert.git
+RUN pip --no-cache-dir install git+https://github.com/kaushaltrivedi/fast-bert.git
 
 ENV PATH="/opt/ml/code:${PATH}"
 COPY /bert /opt/ml/code
