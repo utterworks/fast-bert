@@ -2,6 +2,8 @@
 
 **_ NEW _**
 
+**RoBERTa model support added to Fastbert**
+
 **Now supports LAMB optimizer for faster training.**
 Please refer to https://arxiv.org/abs/1904.00962 for the paper on LAMB optimizer.
 
@@ -13,7 +15,7 @@ The work on FastBert is built on solid foundations provided by the excellent [Hu
 
 With FastBert, you will be able to:
 
-1. Train (more precisely fine-tune) BERT and XLNet text classification models on your custom dataset.
+1. Train (more precisely fine-tune) BERT, RoBERTa and XLNet text classification models on your custom dataset.
 
 2. Tune model hyper-parameters such as epochs, learning rate, batch size, optimiser schedule and more.
 
@@ -24,6 +26,8 @@ Fast-Bert will support both multi-class and multi-label text classification for 
 1.  **[BERT](https://github.com/google-research/bert)** (from Google) released with the paper [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805) by Jacob Devlin, Ming-Wei Chang, Kenton Lee and Kristina Toutanova.
 
 2)  **[XLNet](https://github.com/zihangdai/xlnet/)** (from Google/CMU) released with the paper [​XLNet: Generalized Autoregressive Pretraining for Language Understanding](https://arxiv.org/abs/1906.08237) by Zhilin Yang*, Zihang Dai*, Yiming Yang, Jaime Carbonell, Ruslan Salakhutdinov, Quoc V. Le.
+
+3)  **[RoBERTa](https://arxiv.org/abs/1907.11692)** (from Facebook), a Robustly Optimized BERT Pretraining Approach by Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du et al.
 
 ## Installation
 
@@ -63,7 +67,7 @@ pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cud
 
 ### 1. Create a DataBunch object
 
-The databunch object takes training, validation and test csv files and converts the data into internal representation for BERT or XLNet. The object also instantiates the correct data-loaders based on device profile and batch_size and max_sequence_length.
+The databunch object takes training, validation and test csv files and converts the data into internal representation for BERT, RoBERTa or XLNet. The object also instantiates the correct data-loaders based on device profile and batch_size and max_sequence_length.
 
 ```python
 
@@ -121,7 +125,7 @@ For example for using XLNet base cased model, set tokenizer parameter to 'xlnet-
 
 #### Model Type
 
-Fast-Bert supports XLNet and BERT based classification models. Set model type parameter value to **'bert'** or **'xlnet'** in order to initiate an appropriate databunch object.
+Fast-Bert supports XLNet, RoBERTa and BERT based classification models. Set model type parameter value to **'bert'**, **roberta** or **'xlnet'** in order to initiate an appropriate databunch object.
 
 ### 2. Create a Learner Object
 
