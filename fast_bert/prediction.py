@@ -3,13 +3,15 @@ import torch
 from pytorch_transformers import BertTokenizer
 from .data_cls import BertDataBunch
 from .learner_cls import BertLearner
-from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification
+from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification, DistilBertForMultiLabelSequenceClassification
 
 from pytorch_transformers import (WEIGHTS_NAME, 
                                   BertConfig, BertForSequenceClassification, BertTokenizer,
                                   XLMConfig, XLMForSequenceClassification, XLMTokenizer, 
                                   XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer,
-                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
+                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
+                                  DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer
+                                 )
 
 import warnings
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
@@ -19,7 +21,8 @@ MODEL_CLASSES = {
     'bert': (BertConfig, (BertForSequenceClassification, BertForMultiLabelSequenceClassification), BertTokenizer),
     'xlnet': (XLNetConfig, (XLNetForSequenceClassification, XLNetForMultiLabelSequenceClassification), XLNetTokenizer),
     'xlm': (XLMConfig, (XLMForSequenceClassification, XLMForSequenceClassification), XLMTokenizer),
-    'roberta': (RobertaConfig, (RobertaForSequenceClassification, RobertaForMultiLabelSequenceClassification), RobertaTokenizer)
+    'roberta': (RobertaConfig, (RobertaForSequenceClassification, RobertaForMultiLabelSequenceClassification), RobertaTokenizer),
+    'distilbert': (DistilBertConfig, (DistilBertForSequenceClassification, DistilBertForMultiLabelSequenceClassification), DistilBertTokenizer)
 }
 
 

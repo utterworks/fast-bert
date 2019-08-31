@@ -1,6 +1,6 @@
 import os
 from .data import BertDataBunch, InputExample, InputFeatures
-from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification
+from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification, DistilBertForMultiLabelSequenceClassification
 
 from pathlib import Path
 
@@ -15,7 +15,8 @@ from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
                                   XLMTokenizer, XLNetConfig,
                                   XLNetForSequenceClassification,
                                   XLNetTokenizer, 
-                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
+                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
+                                  DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
 
 from pytorch_lamb import Lamb
 
@@ -25,7 +26,8 @@ MODEL_CLASSES = {
     'bert': (BertConfig, (BertForSequenceClassification, BertForMultiLabelSequenceClassification), BertTokenizer),
     'xlnet': (XLNetConfig, (XLNetForSequenceClassification, XLNetForMultiLabelSequenceClassification), XLNetTokenizer),
     'xlm': (XLMConfig, (XLMForSequenceClassification, XLMForSequenceClassification), XLMTokenizer),
-    'roberta': (RobertaConfig, (RobertaForSequenceClassification, RobertaForMultiLabelSequenceClassification), RobertaTokenizer)
+    'roberta': (RobertaConfig, (RobertaForSequenceClassification, RobertaForMultiLabelSequenceClassification), RobertaTokenizer),
+    'distilbert': (DistilBertConfig, (DistilBertForSequenceClassification, DistilBertForMultiLabelSequenceClassification), DistilBertTokenizer)
 }
 
 
@@ -44,7 +46,15 @@ try:
     from apex.normalization.fused_layer_norm import FusedLayerNorm
 except:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
-    
+
+SCHEDULES = {
+            None:       ConstantLRSchedule,
+            "none":     ConstantLRSchedule,
+            "warmup_cosine": WarmupCosineSchedule,
+            "warmup_constant": WarmupConstantSchedule,
+            "warmup_linear": WarmupLinearSchedule,
+            "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
+        }
 
 class BertLearner(object):
     
@@ -177,14 +187,7 @@ class BertLearner(object):
     
     def get_optimizer(self, lr, t_total, schedule_type='warmup_linear', optimizer_type='lamb'):   
         
-        SCHEDULES = {
-            None:       ConstantLRSchedule,
-            "none":     ConstantLRSchedule,
-            "warmup_cosine": WarmupCosineSchedule,
-            "warmup_constant": WarmupConstantSchedule,
-            "warmup_linear": WarmupLinearSchedule,
-            "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
-        }
+        
         
         # Prepare optimiser and schedule 
         no_decay = ['bias', 'LayerNorm.weight']
@@ -239,6 +242,9 @@ class BertLearner(object):
                 raise ImportError('Please install apex to use fp16 training')
             self.model, optimizer = amp.initialize(self.model, optimizer, opt_level=self.fp16_opt_level)
         
+        schedule_class = SCHEDULES[schedule_type]
+
+        scheduler = schedule_class(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
         #scheduler = WarmupCosineSchedule(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
         
         # Parallelize the model architecture
@@ -266,8 +272,11 @@ class BertLearner(object):
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = {'input_ids':      batch[0],
                           'attention_mask': batch[1],
-                          'token_type_ids': batch[2] if self.model_type in ['bert', 'xlnet', 'roberta'] else None,  # XLM don't use segment_ids
                           'labels':         batch[3]}
+                
+                if self.model_type in ['bert', 'xlnet']:
+                    inputs['token_type_ids'] = batch[2]
+                    
                 outputs = self.model(**inputs)
                 loss = outputs[0]  # model outputs are always tuple in pytorch-transformers (see doc)
 
@@ -286,8 +295,9 @@ class BertLearner(object):
 
                 tr_loss += loss.item()
                 if (step + 1) % self.grad_accumulation_steps == 0:
-                    scheduler.step()
                     optimizer.step()
+                    scheduler.step()
+                    
                     self.model.zero_grad()
                     global_step += 1
 
@@ -347,8 +357,11 @@ class BertLearner(object):
             with torch.no_grad():
                 inputs = {'input_ids':      batch[0],
                           'attention_mask': batch[1],
-                          'token_type_ids': batch[2] if self.model_type in ['bert', 'xlnet'] else None,  # XLM don't use segment_ids
                           'labels':         batch[3]}
+                
+                if self.model_type in ['bert', 'xlnet']:
+                    inputs['token_type_ids'] = batch[2]
+                    
                 outputs = self.model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
             
@@ -380,7 +393,7 @@ class BertLearner(object):
         eval_loss = eval_loss / nb_eval_steps
         
         # Evaluation metrics
-        for metric in self.metrics:                
+        for metric in self.metrics:
             validation_scores[metric['name']] = metric['function'](all_logits, all_labels)
 
         results = {'loss': eval_loss }
@@ -420,8 +433,10 @@ class BertLearner(object):
             
             inputs = {'input_ids':      batch[0],
                       'attention_mask': batch[1],
-                      'token_type_ids': batch[2] if self.model_type in ['bert', 'xlnet'] else None,  # XLM don't use segment_ids
                       'labels':         None }
+            
+            if self.model_type in ['bert', 'xlnet']:
+                    inputs['token_type_ids'] = batch[2]
             
             with torch.no_grad():
                 outputs = self.model(**inputs)
