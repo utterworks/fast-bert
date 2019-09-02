@@ -38,7 +38,8 @@ try:
 except:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
 
-
+from .optimization import BertAdam, ConstantLR, WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithWarmupRestartsSchedule, WarmupCosineWithHardRestartsSchedule
+    
 def warmup_linear(x, warmup=0.002):
     if x < warmup:
         return x/warmup
@@ -55,7 +56,7 @@ SCHEDULES = {
 }
 
 
-class Learner(object):
+class Learner(object): pass
     
     
 class BertLearner(object):
@@ -193,7 +194,7 @@ class BertLearner(object):
     def get_optimizer_old(self, lr, num_train_steps, schedule_type='warmup_linear'):
         
         
-        from .optimization import BertAdam, ConstantLR, WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithWarmupRestartsSchedule, WarmupCosineWithHardRestartsSchedule
+        
         
         SCHEDULES = {
             None:       ConstantLR,
