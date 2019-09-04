@@ -1,6 +1,8 @@
 # Fast-Bert
 
-**_ NEW _**
+**NEW Architectures**
+
+**DistilBERT (from HuggingFace), Smaller, faster, cheaper, lighter**
 
 **RoBERTa model support added to Fastbert**
 
@@ -28,6 +30,8 @@ Fast-Bert will support both multi-class and multi-label text classification for 
 2)  **[XLNet](https://github.com/zihangdai/xlnet/)** (from Google/CMU) released with the paper [​XLNet: Generalized Autoregressive Pretraining for Language Understanding](https://arxiv.org/abs/1906.08237) by Zhilin Yang*, Zihang Dai*, Yiming Yang, Jaime Carbonell, Ruslan Salakhutdinov, Quoc V. Le.
 
 3)  **[RoBERTa](https://arxiv.org/abs/1907.11692)** (from Facebook), a Robustly Optimized BERT Pretraining Approach by Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du et al.
+
+4)  **DistilBERT (from HuggingFace)**, released together with the blogpost [Smaller, faster, cheaper, lighter: Introducing DistilBERT, a distilled version of BERT](https://medium.com/huggingface/distilbert-8cf3380435b5) by Victor Sanh, Lysandre Debut and Thomas Wolf.
 
 ## Installation
 
