@@ -235,6 +235,9 @@ class BertLearner(object):
         # Prepare optimiser and schedule 
         no_decay = ['bias', 'LayerNorm.weight']
         
+        if hasattr(self.model, 'module'):
+            self.model = self.model.module
+        
         if self.is_fp16:
             try:
                 from apex import amp
@@ -261,12 +264,15 @@ class BertLearner(object):
         self.logger.info("  Total optimization steps = %d", t_total)
 
         global_step =  0
-        tr_loss, logging_loss = 0.0, 0.0
+        epoch_step = 0
+        tr_loss, logging_loss, epoch_loss = 0.0, 0.0, 0.0
         self.model.zero_grad()
         pbar = master_bar(range(epochs))
     #     set_seed(args)
 
         for epoch in pbar:
+            epoch_step = 0
+            epoch_loss = 0.0
             for step, batch in enumerate(progress_bar(train_dataloader, parent=pbar)):
                 self.model.train()
                 batch = tuple(t.to(self.device) for t in batch)
@@ -294,12 +300,14 @@ class BertLearner(object):
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
 
                 tr_loss += loss.item()
+                epoch_loss += loss.item() 
                 if (step + 1) % self.grad_accumulation_steps == 0:
                     optimizer.step()
                     scheduler.step()
                     
                     self.model.zero_grad()
                     global_step += 1
+                    epoch_step += 1
 
                     if self.logging_steps > 0 and global_step % self.logging_steps == 0:
                         if validate:
@@ -324,7 +332,10 @@ class BertLearner(object):
                 for key, value in results.items():
                     self.logger.info("eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value))
                 
-                
+            # Log metrics
+            self.logger.info("lr after epoch {}: {}".format((epoch + 1), scheduler.get_lr()[0]))
+            self.logger.info("train_loss after epoch {}: {}".format((epoch + 1), epoch_loss/epoch_step))  
+            self.logger.info("\n")
             
         tb_writer.close()
         return global_step, tr_loss / global_step   

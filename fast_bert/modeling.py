@@ -144,17 +144,6 @@ class BertForMultiLabelSequenceClassification(BertForSequenceClassification):
     ```
     """
 
-    def __init__(self, config):
-
-        super(BertForMultiLabelSequenceClassification,
-              self).__init__(config)
-        self.num_labels = config.num_labels
-        self.bert = BertModel(config)
-        self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        
-        self.apply(self.init_weights)
-
     
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None,
                 position_ids=None, head_mask=None):
@@ -213,15 +202,7 @@ class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
         >>> outputs = model(input_ids, labels=labels)
         >>> loss, logits = outputs[:2]
     """
-    def __init__(self, config):
-        super(XLNetForMultiLabelSequenceClassification, self).__init__(config)
-        self.num_labels = config.num_labels
 
-        self.transformer = XLNetModel(config)
-        self.sequence_summary = SequenceSummary(config)
-        self.logits_proj = torch.nn.Linear(config.d_model, config.num_labels)
-
-        self.apply(self.init_weights)
 
     def forward(self, input_ids, token_type_ids=None, input_mask=None, attention_mask=None,
                 mems=None, perm_mask=None, target_mapping=None,
