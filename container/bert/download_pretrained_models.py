@@ -25,7 +25,9 @@ PRETRAINED_VOCAB_FILES_MAP = {
     # ROBERTA
     'roberta-base': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-vocab.json",
     'roberta-large': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-vocab.json",
-    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-vocab.json" 
+    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-vocab.json",
+    # DISTILBERT
+    'distilbert-base-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt"
 }
 
 PRETRAINED_VOCAB_MERGES_MAP = {
@@ -55,7 +57,9 @@ BERT_PRETRAINED_MODEL_ARCHIVE_MAP = {
     # ROBERTA
     'roberta-base': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-pytorch_model.bin",
     'roberta-large': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-pytorch_model.bin",
-    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-pytorch_model.bin"
+    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-pytorch_model.bin",
+    # DISTILBERT
+    'distilbert-base-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-pytorch_model.bin"
 }
 
 BERT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
@@ -79,7 +83,9 @@ BERT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     # ROBERTA
     'roberta-base': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-config.json",
     'roberta-large': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-config.json",
-    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-config.json"
+    'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-config.json",
+    # DISTILBERT
+    'distilbert-base-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-config.json"
 }
 
 

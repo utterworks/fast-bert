@@ -1,7 +1,7 @@
-FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
+#FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
 #FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04
-#FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 ARG ARCH=gpu
 
 ARG py_version=3
@@ -64,17 +64,14 @@ RUN pip --no-cache-dir install \
         scipy \
         sklearn \
         pandas \
-        Pillow \
-        h5py \
         fastprogress \
         python-box \
         tensorboardX
 
-
 RUN ls
 RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 
-RUN pip --no-cache-dir install git+https://github.com/kaushaltrivedi/fast-bert.git
+RUN pip --no-cache-dir install fast-bert
 
 ENV PATH="/opt/ml/code:${PATH}"
 COPY /bert /opt/ml/code
@@ -84,7 +81,7 @@ WORKDIR /opt/ml/code
 
 RUN cd $WORKDIR
 
-RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased xlnet-base-cased roberta-base
+RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased xlnet-base-cased roberta-base distilbert-base-uncased
 
 
 
