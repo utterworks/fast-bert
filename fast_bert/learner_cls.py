@@ -228,7 +228,7 @@ class BertLearner(object):
             t_total = len(train_dataloader) // self.grad_accumulation_steps * epochs
 
         # Prepare optimiser and schedule 
-        optimizer, scheduler = self.get_optimizer(lr, t_total, 
+        optimizer, _ = self.get_optimizer(lr, t_total, 
                                                   schedule_type=schedule_type, optimizer_type=optimizer_type)
         
         # Prepare optimiser and schedule 
