@@ -82,7 +82,6 @@ class BertLearner(object):
         else:
             model = model_class[0].from_pretrained(pretrained_path, config=config, state_dict=model_state_dict)
         
-        device_id = torch.cuda.current_device() 
         model.to(device)
     
             

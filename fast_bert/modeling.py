@@ -1,6 +1,5 @@
-from pytorch_transformers import BertForSequenceClassification, BertModel, BertConfig, XLNetPreTrainedModel, XLNetModel, RobertaModel, RobertaConfig, BertPreTrainedModel, RobertaForSequenceClassification, DistilBertForSequenceClassification
-        
-from pytorch_transformers.modeling_utils import SequenceSummary
+from pytorch_transformers import BertForSequenceClassification, BertModel, BertConfig, XLNetForSequenceClassification, RobertaModel, RobertaConfig, BertPreTrainedModel, RobertaForSequenceClassification, DistilBertForSequenceClassification
+
 import torch
 from torch import Tensor
 from torch.nn import BCEWithLogitsLoss
@@ -36,9 +35,10 @@ class DistilBertForMultiLabelSequenceClassification(DistilBertForSequenceClassif
 
     def forward(self, input_ids,  attention_mask=None, labels=None, head_mask=None):
         distilbert_output = self.distilbert(input_ids=input_ids,
-                                      attention_mask=attention_mask,
-                                      head_mask=head_mask)
-        hidden_state = distilbert_output[0]                    # (bs, seq_len, dim)
+                                            attention_mask=attention_mask,
+                                            head_mask=head_mask)
+        # (bs, seq_len, dim)
+        hidden_state = distilbert_output[0]
         pooled_output = hidden_state[:, 0]                    # (bs, dim)
         pooled_output = self.pre_classifier(pooled_output)   # (bs, dim)
         pooled_output = torch.nn.ReLU()(pooled_output)             # (bs, dim)
@@ -48,11 +48,13 @@ class DistilBertForMultiLabelSequenceClassification(DistilBertForSequenceClassif
         outputs = (logits,) + distilbert_output[1:]
         if labels is not None:
             loss_fct = BCEWithLogitsLoss()
-            
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
+
+            loss = loss_fct(logits.view(-1, self.num_labels),
+                            labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
+
 
 class RobertaForMultiLabelSequenceClassification(RobertaForSequenceClassification):
     r"""
@@ -85,24 +87,23 @@ class RobertaForMultiLabelSequenceClassification(RobertaForSequenceClassificatio
 #    pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "roberta"
 
-    
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None,
                 position_ids=None, head_mask=None):
         outputs = self.roberta(input_ids, position_ids=position_ids, token_type_ids=token_type_ids,
-                            attention_mask=attention_mask, head_mask=head_mask)
+                               attention_mask=attention_mask, head_mask=head_mask)
         sequence_output = outputs[0]
         logits = self.classifier(sequence_output)
 
         outputs = (logits,) + outputs[2:]
-        
+
         if labels is not None:
             loss_fct = BCEWithLogitsLoss()
-            
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
+
+            loss = loss_fct(logits.view(-1, self.num_labels),
+                            labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
-
 
 
 class BertForMultiLabelSequenceClassification(BertForSequenceClassification):
@@ -144,12 +145,11 @@ class BertForMultiLabelSequenceClassification(BertForSequenceClassification):
     ```
     """
 
-    
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None,
                 position_ids=None, head_mask=None):
-        
+
         import pdb
-        #pdb.set_trace()
+        # pdb.set_trace()
         outputs = self.bert(input_ids, position_ids=position_ids, token_type_ids=token_type_ids,
                             attention_mask=attention_mask, head_mask=head_mask)
         pooled_output = outputs[1]
@@ -157,19 +157,20 @@ class BertForMultiLabelSequenceClassification(BertForSequenceClassification):
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 
-        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
+        # add hidden states and attention if they are here
+        outputs = (logits,) + outputs[2:]
 
         if labels is not None:
             loss_fct = BCEWithLogitsLoss()
-            
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
+
+            loss = loss_fct(logits.view(-1, self.num_labels),
+                            labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
 
 
-    
-class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
+class XLNetForMultiLabelSequenceClassification(XLNetForSequenceClassification):
     r"""
         **labels**: (`optional`) ``torch.LongTensor`` of shape ``(batch_size,)``:
             Labels for computing the sequence classification/regression loss.
@@ -203,7 +204,6 @@ class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
         >>> loss, logits = outputs[:2]
     """
 
-
     def forward(self, input_ids, token_type_ids=None, input_mask=None, attention_mask=None,
                 mems=None, perm_mask=None, target_mapping=None,
                 labels=None, head_mask=None):
@@ -216,12 +216,14 @@ class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
         output = self.sequence_summary(output)
         logits = self.logits_proj(output)
 
-        outputs = (logits,) + transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
-        
+        # Keep mems, hidden states, attentions if there are in it
+        outputs = (logits,) + transformer_outputs[1:]
+
         if labels is not None:
             loss_fct = BCEWithLogitsLoss()
-            
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
+
+            loss = loss_fct(logits.view(-1, self.num_labels),
+                            labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
