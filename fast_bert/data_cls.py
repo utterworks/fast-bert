@@ -353,7 +353,7 @@ class BertDataBunch(object):
             
             val_dataset = self.get_dataset_from_examples(val_examples, 'dev')
             
-            self.val_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
+            self.val_batch_size = self.batch_size_per_gpu * 2 * max(1, self.n_gpu) # no grads necessary, hence double val batch size
             val_sampler = SequentialSampler(val_dataset) 
             self.val_dl = DataLoader(val_dataset, sampler=val_sampler, batch_size=self.val_batch_size)
             
