@@ -94,6 +94,10 @@ class BertLearner(object):
                  multi_gpu=True, is_fp16=True, loss_scale=0, warmup_steps=0, fp16_opt_level='O1',
                  grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, adam_epsilon=1e-8, logging_steps=100):
         
+
+        output_dir = Path(output_dir)
+        
+
         self.multi_label = multi_label
         self.data = data
         self.model = model

@@ -27,6 +27,7 @@ MODEL_CLASSES = {
     'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
 }
 
+
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
 
@@ -94,13 +95,14 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
     """
 
-    label_map = {label : i for i, label in enumerate(label_list)}
+    label_map = {label: i for i, label in enumerate(label_list)}
 
     features = []
     for (ex_index, example) in enumerate(examples):
         if ex_index % 10000 == 0:
             if logger:
-                logger.info("Writing example %d of %d" % (ex_index, len(examples)))
+                logger.info("Writing example %d of %d" %
+                            (ex_index, len(examples)))
 
         tokens_a = tokenizer.tokenize(example.text_a)
 
@@ -158,12 +160,16 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         padding_length = max_seq_length - len(input_ids)
         if pad_on_left:
             input_ids = ([pad_token] * padding_length) + input_ids
-            input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
-            segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
+            input_mask = ([0 if mask_padding_with_zero else 1]
+                          * padding_length) + input_mask
+            segment_ids = ([pad_token_segment_id] *
+                           padding_length) + segment_ids
         else:
             input_ids = input_ids + ([pad_token] * padding_length)
-            input_mask = input_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
-            segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
+            input_mask = input_mask + \
+                ([0 if mask_padding_with_zero else 1] * padding_length)
+            segment_ids = segment_ids + \
+                ([pad_token_segment_id] * padding_length)
 
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
@@ -180,10 +186,10 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
                 label_id = ''
 
         features.append(
-                InputFeatures(input_ids=input_ids,
-                              input_mask=input_mask,
-                              segment_ids=segment_ids,
-                              label_id=label_id))
+            InputFeatures(input_ids=input_ids,
+                          input_mask=input_mask,
+                          segment_ids=segment_ids,
+                          label_id=label_id))
     return features
 
 
@@ -283,15 +289,20 @@ class BertDataBunch(object):
     def __init__(self, data_dir, label_dir, tokenizer, train_file='train.csv', val_file='val.csv', test_data=None,
                  label_file='labels.csv', text_col='text', label_col='label', batch_size_per_gpu=16, max_seq_length=512,
                  multi_gpu=True, multi_label=False, backend="nccl", model_type='bert', logger=None, clear_cache=False, no_cache=False):
-        
-        if isinstance(tokenizer, str):
-            _,_,tokenizer_class = MODEL_CLASSES[model_type]
-            # instantiate the new tokeniser object using the tokeniser name
-            tokenizer = tokenizer_class.from_pretrained(tokenizer, do_lower_case=('uncased' in tokenizer))
 
-        self.tokenizer = tokenizer  
+        # just in case someone passes string instead of Path
+        data_dir = Path(data_dir)
+        label_dir = Path(label_dir)
+
+        if isinstance(tokenizer, str):
+            _, _, tokenizer_class = MODEL_CLASSES[model_type]
+            # instantiate the new tokeniser object using the tokeniser name
+            tokenizer = tokenizer_class.from_pretrained(
+                tokenizer, do_lower_case=('uncased' in tokenizer))
+
+        self.tokenizer = tokenizer
         self.data_dir = data_dir
-        self.cache_dir = data_dir/'cache'    
+        self.cache_dir = data_dir/'cache'
         self.max_seq_length = max_seq_length
         self.batch_size_per_gpu = batch_size_per_gpu
         self.train_dl = None
@@ -307,59 +318,63 @@ class BertDataBunch(object):
         self.logger = logger
         if multi_gpu:
             self.n_gpu = torch.cuda.device_count()
-        
+
         if clear_cache:
             shutil.rmtree(self.cache_dir, ignore_errors=True)
-            
+
         if multi_label:
             processor = MultiLabelTextProcessor(data_dir, label_dir)
         else:
             processor = TextProcessor(data_dir, label_dir)
 
         self.labels = processor.get_labels(label_file)
-        
+
         if train_file:
             # Train DataLoader
             train_examples = None
             cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
-                                    self.model_type,
-                                    'train',
-                                    'multi_label' if self.multi_label else 'multi_class',
-                                    str(self.max_seq_length)))
-        
+                self.model_type,
+                'train',
+                'multi_label' if self.multi_label else 'multi_class',
+                str(self.max_seq_length)))
+
             if os.path.exists(cached_features_file) == False:
                 train_examples = processor.get_train_examples(
-                    train_file, text_col=text_col, label_col=label_col)  
+                    train_file, text_col=text_col, label_col=label_col)
 
-            train_dataset = self.get_dataset_from_examples(train_examples, 'train')
+            train_dataset = self.get_dataset_from_examples(
+                train_examples, 'train')
 
-            self.train_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
+            self.train_batch_size = self.batch_size_per_gpu * \
+                max(1, self.n_gpu)
             train_sampler = RandomSampler(train_dataset)
-            self.train_dl = DataLoader(train_dataset, sampler=train_sampler, batch_size=self.train_batch_size)
-            
+            self.train_dl = DataLoader(
+                train_dataset, sampler=train_sampler, batch_size=self.train_batch_size)
 
         if val_file:
             # Validation DataLoader
             val_examples = None
             cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
-                                    self.model_type,
-                                    'dev',
-                                    'multi_label' if self.multi_label else 'multi_class',
-                                    str(self.max_seq_length)))
-            
+                self.model_type,
+                'dev',
+                'multi_label' if self.multi_label else 'multi_class',
+                str(self.max_seq_length)))
+
             if os.path.exists(cached_features_file) == False:
                 val_examples = processor.get_dev_examples(
                     val_file, text_col=text_col, label_col=label_col)
-            
+
             val_dataset = self.get_dataset_from_examples(val_examples, 'dev')
-            
-            self.val_batch_size = self.batch_size_per_gpu * 2 * max(1, self.n_gpu) # no grads necessary, hence double val batch size
-            val_sampler = SequentialSampler(val_dataset) 
-            self.val_dl = DataLoader(val_dataset, sampler=val_sampler, batch_size=self.val_batch_size)
-            
-        
+
+            # no grads necessary, hence double val batch size
+            self.val_batch_size = self.batch_size_per_gpu * \
+                2 * max(1, self.n_gpu)
+            val_sampler = SequentialSampler(val_dataset)
+            self.val_dl = DataLoader(
+                val_dataset, sampler=val_sampler, batch_size=self.val_batch_size)
+
         if test_data:
-            # Test set loader for predictions 
+            # Test set loader for predictions
             test_examples = []
             input_data = []
 
@@ -370,80 +385,90 @@ class BertDataBunch(object):
                     'text': text
                 })
 
+            test_dataset = self.get_dataset_from_examples(
+                test_examples, 'test', is_test=True)
 
-            test_dataset = self.get_dataset_from_examples(test_examples, 'test', is_test=True)
-            
             self.test_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             test_sampler = SequentialSampler(test_dataset)
-            self.test_dl = DataLoader(test_dataset, sampler=test_sampler, batch_size=self.test_batch_size)
+            self.test_dl = DataLoader(
+                test_dataset, sampler=test_sampler, batch_size=self.test_batch_size)
 
-    
     def get_dl_from_texts(self, texts):
 
         test_examples = []
         input_data = []
-        
+
         for index, text in enumerate(texts):
             test_examples.append(InputExample(index, text, label=None))
             input_data.append({
                 'id': index,
                 'text': text
             })
-        
-        test_dataset = self.get_dataset_from_examples(test_examples, 'test', is_test=True)
-        
+
+        test_dataset = self.get_dataset_from_examples(
+            test_examples, 'test', is_test=True)
+
         test_sampler = SequentialSampler(test_dataset)
         return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu)
 
-    
     def get_dataset_from_examples(self, examples, set_type='train', is_test=False):
-        
-        
+
         cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
             self.model_type,
             set_type,
             'multi_label' if self.multi_label else 'multi_class',
             str(self.max_seq_length)))
-        
+
         if os.path.exists(cached_features_file):
-            self.logger.info("Loading features from cached file %s", cached_features_file)
+            self.logger.info(
+                "Loading features from cached file %s", cached_features_file)
             features = torch.load(cached_features_file)
         else:
-            # Create tokenized and numericalized features 
+            # Create tokenized and numericalized features
             features = convert_examples_to_features(
-                    examples, 
-                    label_list=self.labels, 
-                    max_seq_length=self.max_seq_length, 
-                    tokenizer=self.tokenizer, 
-                    output_mode=self.output_mode,
-                    cls_token_at_end=bool(self.model_type in ['xlnet']), # xlnet has a cls token at the end
-                    cls_token=self.tokenizer.cls_token,
-                    sep_token=self.tokenizer.sep_token,
-                    cls_token_segment_id=2 if self.model_type in ['xlnet'] else 0,
-                    pad_on_left=bool(self.model_type in ['xlnet']),                 # pad on the left for xlnet
-                    pad_token_segment_id=4 if self.model_type in ['xlnet'] else 0,
-                    logger=self.logger)
-            
-            self.cache_dir.mkdir(exist_ok=True)  # Creaet folder if it doesn't exist
+                examples,
+                label_list=self.labels,
+                max_seq_length=self.max_seq_length,
+                tokenizer=self.tokenizer,
+                output_mode=self.output_mode,
+                # xlnet has a cls token at the end
+                cls_token_at_end=bool(self.model_type in ['xlnet']),
+                cls_token=self.tokenizer.cls_token,
+                sep_token=self.tokenizer.sep_token,
+                cls_token_segment_id=2 if self.model_type in ['xlnet'] else 0,
+                # pad on the left for xlnet
+                pad_on_left=bool(self.model_type in ['xlnet']),
+                pad_token_segment_id=4 if self.model_type in ['xlnet'] else 0,
+                logger=self.logger)
+
+            # Creaet folder if it doesn't exist
+            self.cache_dir.mkdir(exist_ok=True)
             if self.no_cache == False:
-                self.logger.info("Saving features into cached file %s", cached_features_file)
+                self.logger.info(
+                    "Saving features into cached file %s", cached_features_file)
                 torch.save(features, cached_features_file)
 
         # Convert to Tensors and build dataset
-        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-        
-        if is_test == False: # labels not available for test set
+        all_input_ids = torch.tensor(
+            [f.input_ids for f in features], dtype=torch.long)
+        all_input_mask = torch.tensor(
+            [f.input_mask for f in features], dtype=torch.long)
+        all_segment_ids = torch.tensor(
+            [f.segment_ids for f in features], dtype=torch.long)
+
+        if is_test == False:  # labels not available for test set
             if self.multi_label:
-                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
+                all_label_ids = torch.tensor(
+                    [f.label_id for f in features], dtype=torch.float)
             else:
-                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
-                
-            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+                all_label_ids = torch.tensor(
+                    [f.label_id for f in features], dtype=torch.long)
+
+            dataset = TensorDataset(
+                all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
         else:
             all_label_ids = []
-            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids)
-        
-        
+            dataset = TensorDataset(
+                all_input_ids, all_input_mask, all_segment_ids)
+
         return dataset
