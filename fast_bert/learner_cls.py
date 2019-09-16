@@ -94,8 +94,8 @@ class BertLearner(object):
                  multi_gpu=True, is_fp16=True, loss_scale=0, warmup_steps=0, fp16_opt_level='O1',
                  grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, adam_epsilon=1e-8, logging_steps=100):
         
-
-        output_dir = Path(output_dir)
+        if isinstance(output_dir, str):
+            output_dir = Path(output_dir)
         
 
         self.multi_label = multi_label
@@ -456,6 +456,8 @@ class BertLearner(object):
                 outputs = self.model(**inputs)
                 logits = outputs[0]
                 if self.multi_label:
+                    logits = logits.sigmoid()
+                elif len(self.data.labels) == 2:
                     logits = logits.sigmoid()
                 else:
                     logits = logits.softmax(dim=1)

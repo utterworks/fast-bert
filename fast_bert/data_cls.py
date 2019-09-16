@@ -406,12 +406,12 @@ class BertDataBunch(object):
             })
 
         test_dataset = self.get_dataset_from_examples(
-            test_examples, 'test', is_test=True)
+            test_examples, 'test', is_test=True, no_cache=True)
 
         test_sampler = SequentialSampler(test_dataset)
         return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu)
 
-    def get_dataset_from_examples(self, examples, set_type='train', is_test=False):
+    def get_dataset_from_examples(self, examples, set_type='train', is_test=False, no_cache=False):
 
         cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
             self.model_type,
@@ -419,7 +419,7 @@ class BertDataBunch(object):
             'multi_label' if self.multi_label else 'multi_class',
             str(self.max_seq_length)))
 
-        if os.path.exists(cached_features_file):
+        if os.path.exists(cached_features_file) and no_cache == False:
             self.logger.info(
                 "Loading features from cached file %s", cached_features_file)
             features = torch.load(cached_features_file)
@@ -441,9 +441,9 @@ class BertDataBunch(object):
                 pad_token_segment_id=4 if self.model_type in ['xlnet'] else 0,
                 logger=self.logger)
 
-            # Creaet folder if it doesn't exist
+            # Create folder if it doesn't exist
             self.cache_dir.mkdir(exist_ok=True)
-            if self.no_cache == False:
+            if self.no_cache == False or no_cache == False:
                 self.logger.info(
                     "Saving features into cached file %s", cached_features_file)
                 torch.save(features, cached_features_file)
