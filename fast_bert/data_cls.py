@@ -291,8 +291,11 @@ class BertDataBunch(object):
                  multi_gpu=True, multi_label=False, backend="nccl", model_type='bert', logger=None, clear_cache=False, no_cache=False):
 
         # just in case someone passes string instead of Path
-        data_dir = Path(data_dir)
-        label_dir = Path(label_dir)
+        if isinstance(data_dir, str):
+            data_dir = Path(data_dir)
+
+        if isinstance(label_dir, str):
+            label_dir = Path(label_dir)
 
         if isinstance(tokenizer, str):
             _, _, tokenizer_class = MODEL_CLASSES[model_type]

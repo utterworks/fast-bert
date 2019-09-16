@@ -271,7 +271,6 @@ class BertLearner(object):
         tr_loss, logging_loss, epoch_loss = 0.0, 0.0, 0.0
         self.model.zero_grad()
         pbar = master_bar(range(epochs))
-    #     set_seed(args)
 
         for epoch in pbar:
             epoch_step = 0
