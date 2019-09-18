@@ -312,7 +312,7 @@ class BertDataBunch(object):
         self.val_dl = None
         self.test_dl = None
         self.multi_label = multi_label
-        self.n_gpu = 0
+        self.n_gpu = 1
         self.no_cache = no_cache
         self.model_type = model_type
         self.output_mode = 'classification'
