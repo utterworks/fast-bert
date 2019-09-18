@@ -108,7 +108,16 @@ pos
 neg
 ```
 
-For multi-label classification the file will contain multiple labels with each label value being either 0 or 1.
+For multi-label classification, **labels.csv** will contain all possible labels:
+```toxic
+severe_toxic
+obscene
+threat
+insult
+identity_hate
+```
+
+The file **train.csv** will then contain one column for each label, with each column value being either 0 or 1.
 
 | id  | text                                                                       | toxic | severe_toxic | obscene | threat | insult | identity_hate |
 | --- | -------------------------------------------------------------------------- | ----- | ------------ | ------- | ------ | ------ | ------------- |
@@ -245,7 +254,7 @@ texts = [
 	"this is the second text"
 	]
 
-multiple_predictions = predictor.predict(texts)
+multiple_predictions = predictor.predict_batch(texts)
 ```
 
 ## AWS Sagemaker Support
