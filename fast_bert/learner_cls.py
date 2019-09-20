@@ -1,5 +1,5 @@
 import os
-from .data import BertDataBunch, InputExample, InputFeatures
+from .data_cls import BertDataBunch, InputExample, InputFeatures
 from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification, DistilBertForMultiLabelSequenceClassification
 
 from pathlib import Path
@@ -235,9 +235,8 @@ class BertLearner(object):
         optimizer, _ = self.get_optimizer(lr, t_total, 
                                                   schedule_type=schedule_type, optimizer_type=optimizer_type)
         
-        # Prepare optimiser and schedule 
-        no_decay = ['bias', 'LayerNorm.weight']
         
+        # get the base model if its already wrapped around DataParallel
         if hasattr(self.model, 'module'):
             self.model = self.model.module
         
@@ -251,7 +250,6 @@ class BertLearner(object):
         schedule_class = SCHEDULES[schedule_type]
 
         scheduler = schedule_class(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
-        #scheduler = WarmupCosineSchedule(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
         
         # Parallelize the model architecture
         if self.multi_gpu == True:

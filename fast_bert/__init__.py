@@ -5,3 +5,6 @@ from .metrics import accuracy, accuracy_thresh, fbeta, roc_auc, accuracy_multila
 from .learner_cls import BertLearner
 #from .prediction import BertClassificationPredictor
 from .utils.spellcheck import BingSpellCheck
+
+from .data_lm import create_corpus, TextDataset, BertLMDataBunch
+from .learner_lm import BertLMLearner
