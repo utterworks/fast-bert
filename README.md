@@ -69,9 +69,11 @@ pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cud
 
 ## Usage
 
+## Text Classification
+
 ### 1. Create a DataBunch object
 
-The databunch object takes training, validation and test csv files and converts the data into internal representation for BERT, RoBERTa or XLNet. The object also instantiates the correct data-loaders based on device profile and batch_size and max_sequence_length.
+The databunch object takes training, validation and test csv files and converts the data into internal representation for BERT, RoBERTa, DistilBERT or XLNet. The object also instantiates the correct data-loaders based on device profile and batch_size and max_sequence_length.
 
 ```python
 
@@ -109,6 +111,7 @@ neg
 ```
 
 For multi-label classification, **labels.csv** will contain all possible labels:
+
 ```toxic
 severe_toxic
 obscene
@@ -257,12 +260,153 @@ texts = [
 multiple_predictions = predictor.predict_batch(texts)
 ```
 
-## AWS Sagemaker Support
+## Language Model Fine-tuning
+
+A useful approach to use BERT based models on custom datasets is to first finetune the language model task for the custom dataset, an apporach followed by fast.ai's ULMFit. The idea is to start with a pre-trained model and further train the model on the raw text of the custom dataset. We will use the masked LM task to finetune the language model.
+
+This section will describe the usage of FastBert to finetune the language model.
+
+### 1. Import the necessary libraries
+
+The necessary objects are stored in the files with '\_lm' suffix.
+
+```python
+# Language model Databunch
+from fast_bert.data_lm import BertLMDataBunch
+# Language model learner
+from fast_bert.learner_lm import BertLMLearner
+
+from pathlib import Path
+from box import Box
+```
+
+### 2. Define parameters and setup datapaths
+
+```python
+# Box is a nice wrapper to create an object from a json dict
+args = Box({
+    "seed": 42,
+    "task_name": 'imdb_reviews_lm',
+    "model_name": 'roberta-base',
+    "model_type": 'roberta',
+    "train_batch_size": 16,
+    "learning_rate": 4e-5,
+    "num_train_epochs": 20,
+    "fp16": True,
+    "fp16_opt_level": "O2",
+    "warmup_steps": 1000,
+    "logging_steps": 0,
+    "max_seq_length": 512,
+    "multi_gpu": True if torch.cuda.device_count() > 1 else False
+})
+
+DATA_PATH = Path('../lm_data/')
+LOG_PATH = Path('../logs')
+MODEL_PATH = Path('../lm_model_{}/'.format(args.model_type))
+
+DATA_PATH.mkdir(exist_ok=True)
+MODEL_PATH.mkdir(exist_ok=True)
+LOG_PATH.mkdir(exist_ok=True)
+
+
+```
+
+### 3. Create DataBunch object
+
+The BertLMDataBunch class contains a static method 'from_raw_corpus' that will take the list of raw texts and create DataBunch for the language model learner.
+
+The method will at first preprocess the text list by removing html tags, extra spaces and more and then create files `lm_train.txt` and `lm_val.txt`. These files will be used for training and evaluating the language model finetuning task.
+
+The next step will be to featurize the texts. The text will be tokenized, numericalized and split into blocks on 512 tokens (including special tokens).
+
+```python
+databunch_lm = BertLMDataBunch.from_raw_corpus(
+					data_dir=DATA_PATH,
+					text_list=texts,
+					tokenizer=args.model_name,
+					batch_size_per_gpu=args.train_batch_size,
+					max_seq_length=args.max_seq_length,
+                    multi_gpu=args.multi_gpu,
+                    model_type=args.model_type,
+                    logger=logger)
+```
+
+As this step can take some time based on the size of your custom dataset's text, the featurized data will be cached in pickled files in the data_dir/lm_cache folder.
+
+The next time, instead of using from_raw_corpus method, you may want to directly instantiate the DataBunch object as shown below:
+
+```python
+databunch_lm = BertLMDataBunch(
+						data_dir=DATA_PATH,
+						tokenizer=args.model_name,
+                        batch_size_per_gpu=args.train_batch_size,
+                        max_seq_length=args.max_seq_length,
+                        multi_gpu=args.multi_gpu,
+                        model_type=args.model_type,
+                        logger=logger)
+```
+
+### 4. Create the LM Learner object
+
+BertLearner is the ‘learner’ object that holds everything together. It encapsulates the key logic for the lifecycle of the model such as training, validation and inference.
+
+The learner object will take the databunch created earlier as as input alongwith some of the other parameters such as location for one of the pretrained models, FP16 training, multi_gpu and multi_label options.
+
+The learner class contains the logic for training loop, validation loop, and optimizer strategies. This help the developers focus on their custom use-cases without worrying about these repetitive activities.
+
+At the same time the learner object is flexible enough to be customized either via using flexible parameters or by creating a subclass of BertLearner and redefining relevant methods.
+
+```python
+learner = BertLMLearner.from_pretrained_model(
+							dataBunch=databunch_lm,
+							pretrained_path=args.model_name,
+							output_dir=MODEL_PATH,
+							metrics=[],
+							device=device,
+							logger=logger,
+							multi_gpu=args.multi_gpu,
+							logging_steps=args.logging_steps,
+							fp16_opt_level=args.fp16_opt_level)
+```
+
+### 5. Train the model
+
+```python
+learner.fit(epochs=6,
+			lr=6e-5,
+			validate=True. 	# Evaluate the model after each epoch
+			schedule_type="warmup_cosine",
+			optimizer_type="lamb")
+```
+
+Fast-Bert now supports LAMB optmizer. Due to the speed of training, we have set LAMB as the default optimizer. You can switch back to AdamW by setting optimizer_type to 'adamw'.
+
+### 6. Save trained model artifacts
+
+```python
+learner.save_model()
+```
+
+Model artefacts will be persisted in the output_dir/'model_out' path provided to the learner object. Following files will be persisted:
+
+| File name               | description                                      |
+| ----------------------- | ------------------------------------------------ |
+| pytorch_model.bin       | trained model weights                            |
+| spiece.model            | sentence tokenizer vocabulary (for xlnet models) |
+| vocab.txt               | workpiece tokenizer vocabulary (for bert models) |
+| special_tokens_map.json | special tokens mappings                          |
+| config.json             | model config                                     |
+| added_tokens.json       | list of new tokens                               |
+
+The pytorch_model.bin contains the finetuned weights and you can point the classification task learner object to this file throgh the `finetuned_wgts_path` parameter.
+
+## Amazon Sagemaker Support
 
 The purpose of this library is to let you train and deploy production grade models. As transformer models require expensive GPUs to train, I have added support for training and deploying model on AWS SageMaker.
 
-The repository contains the docker image and code for building BERT and XLNet models in SageMaker. Due to the sheer number of breaking changes in Fast-Bert and the underlying pytorch-transformers libraries, at present, the SageMaker will support the older version of Fast-Bert library.  
-I am hoping to update this in coming weeks.
+The repository contains the docker image and code for building BERT based classification models in Amazon SageMaker.
+
+Please refer to my blog [Train and Deploy the Mighty BERT based NLP models using FastBert and Amazon SageMaker](https://towardsdatascience.com/train-and-deploy-mighty-transformer-nlp-models-using-fastbert-and-aws-sagemaker-cc4303c51cf3) that provides detailed explanation on using SageMaker with FastBert.
 
 ## Citation
 
@@ -272,3 +416,5 @@ Also include my blogs on this topic:
 
 - [Introducing FastBert — A simple Deep Learning library for BERT Models](https://medium.com/huggingface/introducing-fastbert-a-simple-deep-learning-library-for-bert-models-89ff763ad384)
 - [Multi-label Text Classification using BERT – The Mighty Transformer](https://medium.com/huggingface/multi-label-text-classification-using-bert-the-mighty-transformer-69714fa3fb3d)
+
+- [Train and Deploy the Mighty BERT based NLP models using FastBert and Amazon SageMaker](https://towardsdatascience.com/train-and-deploy-mighty-transformer-nlp-models-using-fastbert-and-aws-sagemaker-cc4303c51cf3)
