@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
     install_requires = f.read().strip().split('\n')
 
 setup(name='fast_bert',
-      version='1.4.0',
+      version='1.4.1',
       description='AI Library using BERT',
       author='Kaushal Trivedi',
       author_email='kaushaltrivedi@me.com',
