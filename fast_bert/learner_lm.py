@@ -7,12 +7,12 @@ from fastprogress.fastprogress import master_bar, progress_bar
 from tensorboardX import SummaryWriter
 
 from .data_lm import BertLMDataBunch
-from pytorch_transformers import (WEIGHTS_NAME, 
+from transformers import (WEIGHTS_NAME, 
                                   BertConfig, BertForMaskedLM,
                                   RobertaConfig, RobertaForMaskedLM, 
                                   DistilBertConfig, DistilBertForMaskedLM)
 from pytorch_lamb import Lamb
-from pytorch_transformers import AdamW, ConstantLRSchedule, WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithHardRestartsSchedule
+from transformers import AdamW, ConstantLRSchedule, WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithHardRestartsSchedule
 
 MODEL_CLASSES = {
     'bert': (BertConfig, BertForMaskedLM),

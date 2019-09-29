@@ -5,11 +5,11 @@ from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabe
 from pathlib import Path
 
 from torch.optim.lr_scheduler import _LRScheduler, Optimizer
-from pytorch_transformers import AdamW, ConstantLRSchedule
+from transformers import AdamW, ConstantLRSchedule
 
 from tensorboardX import SummaryWriter
 
-from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
+from transformers import (WEIGHTS_NAME, BertConfig,
                                   BertForSequenceClassification, BertTokenizer,
                                   XLMConfig, XLMForSequenceClassification,
                                   XLMTokenizer, XLNetConfig,
@@ -20,7 +20,7 @@ from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
 
 from pytorch_lamb import Lamb
 
-from pytorch_transformers import WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithHardRestartsSchedule
+from transformers import WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithHardRestartsSchedule
 
 MODEL_CLASSES = {
     'bert': (BertConfig, (BertForSequenceClassification, BertForMultiLabelSequenceClassification), BertTokenizer),
@@ -31,7 +31,7 @@ MODEL_CLASSES = {
 }
 
 
-from pytorch_transformers import BertForSequenceClassification
+from transformers import BertForSequenceClassification
 from .bert_layers import BertLayerNorm
 from fastprogress.fastprogress import master_bar, progress_bar
 import torch
