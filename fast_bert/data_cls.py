@@ -10,14 +10,14 @@ import shutil
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
-                                  BertForSequenceClassification, BertTokenizer,
-                                  XLMConfig, XLMForSequenceClassification,
-                                  XLMTokenizer, XLNetConfig,
-                                  XLNetForSequenceClassification,
-                                  XLNetTokenizer,
-                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
-                                  DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
+from transformers import (WEIGHTS_NAME, BertConfig,
+                          BertForSequenceClassification, BertTokenizer,
+                          XLMConfig, XLMForSequenceClassification,
+                          XLMTokenizer, XLNetConfig,
+                          XLNetForSequenceClassification,
+                          XLNetTokenizer,
+                          RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
+                          DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
 
 MODEL_CLASSES = {
     'bert': (BertConfig, BertForSequenceClassification, BertTokenizer),

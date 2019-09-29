@@ -1,11 +1,11 @@
 import os
 import torch
-from pytorch_transformers import BertTokenizer
+from transformers import BertTokenizer
 from .data_cls import BertDataBunch
 from .learner_cls import BertLearner
 from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification, DistilBertForMultiLabelSequenceClassification
 
-from pytorch_transformers import (WEIGHTS_NAME, 
+from transformers import (WEIGHTS_NAME, 
                                   BertConfig, BertForSequenceClassification, BertTokenizer,
                                   XLMConfig, XLMForSequenceClassification, XLMTokenizer, 
                                   XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer,

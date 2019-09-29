@@ -1,4 +1,4 @@
-from pytorch_transformers import BertForSequenceClassification, BertModel, BertConfig, XLNetForSequenceClassification, RobertaModel, RobertaConfig, BertPreTrainedModel, RobertaForSequenceClassification, DistilBertForSequenceClassification
+from transformers import BertForSequenceClassification, BertModel, BertConfig, XLNetForSequenceClassification, RobertaModel, RobertaConfig, BertPreTrainedModel, RobertaForSequenceClassification, DistilBertForSequenceClassification
 
 import torch
 from torch import Tensor

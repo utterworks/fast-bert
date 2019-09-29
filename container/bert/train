@@ -12,7 +12,7 @@ import logging
 
 import torch
 
-from pytorch_transformers import BertTokenizer, XLNetTokenizer, RobertaTokenizer
+from transformers import BertTokenizer, XLNetTokenizer, RobertaTokenizer
 
 
 from fast_bert.data_cls import BertDataBunch
