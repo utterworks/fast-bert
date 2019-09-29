@@ -165,6 +165,7 @@ class BertLMLearner(object):
                 
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
+                
                 self.model.train()
                 
                 outputs = self.model(inputs, masked_lm_labels=labels)
@@ -259,6 +260,10 @@ class BertLMLearner(object):
                 outputs = self.model(batch, masked_lm_labels=batch)
                 tmp_eval_loss = outputs[0]
                 eval_loss += tmp_eval_loss.mean().item()
+                
+                cpu_device = torch.device('cpu')
+                batch.to(cpu_device)
+                torch.cuda.empty_cache()
             
             nb_eval_steps += 1
 

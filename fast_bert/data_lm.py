@@ -235,6 +235,9 @@ class BertLMDataBunch(object):
         labels = inputs.clone()
         # We sample a few tokens in each sequence for masked-LM training (with probability mlm_probability defaults to 0.15 in Bert/RoBERTa)
         masked_indices = torch.bernoulli(torch.full(labels.shape, mlm_probability)).bool()
+        # do not mask special tokens
+        masked_indices[:, 0] = False
+        masked_indices[:, -1] = False
         labels[~masked_indices] = -1  # We only compute loss on masked tokens
 
         # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
@@ -248,3 +251,4 @@ class BertLMDataBunch(object):
 
         # The rest of the time (10% of the time) we keep the masked input tokens unchanged
         return inputs, labels
+    

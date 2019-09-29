@@ -81,7 +81,7 @@ WORKDIR /opt/ml/code
 
 RUN cd $WORKDIR
 
-RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased xlnet-base-cased roberta-base distilbert-base-uncased
+RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased roberta-base distilbert-base-uncased
 
 
 
