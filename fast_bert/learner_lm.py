@@ -6,13 +6,13 @@ import numpy as np
 from fastprogress.fastprogress import master_bar, progress_bar
 from tensorboardX import SummaryWriter
 
+from .learner_util import Learner
+
 from .data_lm import BertLMDataBunch
 from transformers import (WEIGHTS_NAME, 
                                   BertConfig, BertForMaskedLM,
                                   RobertaConfig, RobertaForMaskedLM, 
                                   DistilBertConfig, DistilBertForMaskedLM)
-from pytorch_lamb import Lamb
-from transformers import AdamW, ConstantLRSchedule, WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithHardRestartsSchedule
 
 MODEL_CLASSES = {
     'bert': (BertConfig, BertForMaskedLM),
@@ -20,16 +20,7 @@ MODEL_CLASSES = {
     'distilbert': (DistilBertConfig, DistilBertForMaskedLM)
 }
 
-SCHEDULES = {
-    None:       ConstantLRSchedule,
-    "none":     ConstantLRSchedule,
-    "warmup_cosine": WarmupCosineSchedule,
-    "warmup_constant": WarmupConstantSchedule,
-    "warmup_linear": WarmupLinearSchedule,
-    "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
-}
-
-class BertLMLearner(object):
+class BertLMLearner(Learner):
     
     @staticmethod
     def from_pretrained_model(dataBunch, pretrained_path, output_dir, metrics, device, logger, 
@@ -84,23 +75,6 @@ class BertLMLearner(object):
         if self.multi_gpu:
             self.n_gpu = torch.cuda.device_count()
             
-    # Get Optimiser
-    def get_optimizer(self, lr, optimizer_type='lamb'):   
-          
-        # Prepare optimiser and schedule 
-        no_decay = ['bias', 'LayerNorm.weight']
-        
-        optimizer_grouped_parameters = [
-            {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': self.weight_decay },
-            {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-        ]
-        
-        if optimizer_type == 'lamb':
-            optimizer = Lamb(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
-        elif optimizer_type == 'adamw':
-            optimizer = AdamW(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
-        
-        return optimizer
     
     ### Train the model ###    
     def fit(self, epochs, lr, validate=True, schedule_type="warmup_cosine", optimizer_type='lamb'):
@@ -119,7 +93,9 @@ class BertLMLearner(object):
             t_total = len(train_dataloader) // self.grad_accumulation_steps * epochs
         
         # Prepare optimiser and schedule 
-        optimizer = self.get_optimizer(lr, optimizer_type=optimizer_type)
+        optimizer = get_optimizer(self.model, lr, 
+                                  weight_decay=self.weight_decay, adam_epsilon=self.adam_epsilon, 
+                                  optimizer_type=optimizer_type)
         
         # get the base model if its already wrapped around DataParallel
         if hasattr(self.model, 'module'):
@@ -132,9 +108,8 @@ class BertLMLearner(object):
                 raise ImportError('Please install apex to use fp16 training')
             self.model, optimizer = amp.initialize(self.model, optimizer, opt_level=self.fp16_opt_level)
         
-        schedule_class = SCHEDULES[schedule_type]
-
-        scheduler = schedule_class(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
+        # Get scheduler
+        scheduler = get_scheduler(optimizer, warmup_steps=self.warmup_steps, t_total=t_total, schedule_type=schedule_type)
         
         # Parallelize the model architecture
         if self.multi_gpu == True:

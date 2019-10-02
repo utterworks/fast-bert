@@ -1,26 +1,22 @@
 import os
 from .data_cls import BertDataBunch, InputExample, InputFeatures
+from .learner_util import Learner
+
 from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification, DistilBertForMultiLabelSequenceClassification
 
 from pathlib import Path
 
 from torch.optim.lr_scheduler import _LRScheduler, Optimizer
-from transformers import AdamW, ConstantLRSchedule
 
 from tensorboardX import SummaryWriter
 
-from transformers import (WEIGHTS_NAME, BertConfig,
-                                  BertForSequenceClassification, BertTokenizer,
-                                  XLMConfig, XLMForSequenceClassification,
-                                  XLMTokenizer, XLNetConfig,
-                                  XLNetForSequenceClassification,
-                                  XLNetTokenizer, 
-                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
-                                  DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
+from transformers import (WEIGHTS_NAME, 
+                          BertConfig,BertForSequenceClassification, BertTokenizer,
+                          XLMConfig, XLMForSequenceClassification,XLMTokenizer, 
+                          XLNetConfig,XLNetForSequenceClassification,XLNetTokenizer, 
+                          RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
+                          DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
 
-from pytorch_lamb import Lamb
-
-from transformers import WarmupCosineSchedule, WarmupConstantSchedule, WarmupLinearSchedule, WarmupCosineWithHardRestartsSchedule
 
 MODEL_CLASSES = {
     'bert': (BertConfig, (BertForSequenceClassification, BertForMultiLabelSequenceClassification), BertTokenizer),
@@ -47,16 +43,8 @@ try:
 except:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
 
-SCHEDULES = {
-            None:       ConstantLRSchedule,
-            "none":     ConstantLRSchedule,
-            "warmup_cosine": WarmupCosineSchedule,
-            "warmup_constant": WarmupConstantSchedule,
-            "warmup_linear": WarmupLinearSchedule,
-            "warmup_cosine_hard_restarts": WarmupCosineWithHardRestartsSchedule
-        }
 
-class BertLearner(object):
+class BertLearner(Learner):
     
     @staticmethod
     def from_pretrained_model(dataBunch, pretrained_path, output_dir, metrics, device, logger, finetuned_wgts_path=None, 
@@ -94,39 +82,15 @@ class BertLearner(object):
                  multi_gpu=True, is_fp16=True, loss_scale=0, warmup_steps=0, fp16_opt_level='O1',
                  grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, adam_epsilon=1e-8, logging_steps=100):
         
-        if isinstance(output_dir, str):
-            output_dir = Path(output_dir)
+        super(BertLearner, self).__init__(data, model, pretrained_model_path, output_dir, device, logger, 
+                                            multi_gpu, is_fp16, warmup_steps, fp16_opt_level, grad_accumulation_steps,
+                                            max_grad_norm, adam_epsilon, logging_steps)
         
-
+        # Classification specific attributes
         self.multi_label = multi_label
-        self.data = data
-        self.model = model
-        self.pretrained_model_path = pretrained_model_path
         self.metrics = metrics
-        self.multi_gpu = multi_gpu
-        self.is_fp16 = is_fp16
-        self.fp16_opt_level = fp16_opt_level
-        self.adam_epsilon = adam_epsilon
-        self.loss_scale = loss_scale
-        self.warmup_steps = warmup_steps
-        self.grad_accumulation_steps = grad_accumulation_steps
-        self.device = device
-        self.logger = logger
-        self.layer_groups = None
-        self.optimizer = None
         self.bn_types = (BertLayerNorm, FusedLayerNorm)
-        self.n_gpu = 0
-        self.max_grad_norm = max_grad_norm
-        self.logging_steps = logging_steps
-        self.max_steps = -1
-        self.weight_decay = 0.0
-        self.model_type = data.model_type
-        
-        self.output_dir = output_dir
-        
-        
-        if self.multi_gpu:
-            self.n_gpu = torch.cuda.device_count()
+
         
     
     
@@ -186,32 +150,6 @@ class BertLearner(object):
         self.layer_groups = split_model(self.model, split_on)
         return self
     
-
-    
-    def get_optimizer(self, lr, t_total, schedule_type='warmup_linear', optimizer_type='lamb'):   
-        
-        
-        
-        # Prepare optimiser and schedule 
-        no_decay = ['bias', 'LayerNorm.weight']
-        
-        optimizer_grouped_parameters = [
-            {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': self.weight_decay },
-            {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-        ]
-        
-        if optimizer_type == 'lamb':
-            optimizer = Lamb(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
-        elif optimizer_type == 'adamw':
-            optimizer = AdamW(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
-        
-        
-        schedule_class = SCHEDULES[schedule_type]
-
-        scheduler = schedule_class(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
-        
-        return optimizer, scheduler
-    
     
     ### Train the model ###    
     def fit(self, epochs, lr, validate=True, schedule_type="warmup_cosine", optimizer_type='lamb'):
@@ -231,10 +169,8 @@ class BertLearner(object):
         else:
             t_total = len(train_dataloader) // self.grad_accumulation_steps * epochs
 
-        # Prepare optimiser and schedule 
-        optimizer, _ = self.get_optimizer(lr, t_total, 
-                                                  schedule_type=schedule_type, optimizer_type=optimizer_type)
-        
+        # Prepare optimiser
+        optimizer = self.get_optimizer(lr, optimizer_type=optimizer_type)
         
         # get the base model if its already wrapped around DataParallel
         if hasattr(self.model, 'module'):
@@ -247,9 +183,8 @@ class BertLearner(object):
                 raise ImportError('Please install apex to use fp16 training')
             self.model, optimizer = amp.initialize(self.model, optimizer, opt_level=self.fp16_opt_level)
         
-        schedule_class = SCHEDULES[schedule_type]
-
-        scheduler = schedule_class(optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
+        # Get scheduler
+        scheduler = self.get_scheduler(optimizer, t_total=t_total, schedule_type=schedule_type)
         
         # Parallelize the model architecture
         if self.multi_gpu == True:
@@ -412,18 +347,6 @@ class BertLearner(object):
 
         return results
     
-    def save_model(self): 
-        
-        path = self.output_dir/'model_out'
-        path.mkdir(exist_ok=True)
-        
-        torch.cuda.empty_cache() 
-        # Save a trained model
-        model_to_save = self.model.module if hasattr(self.model, 'module') else self.model  # Only save the model it-self
-        model_to_save.save_pretrained(path)
-        
-        # save the tokenizer
-        self.data.tokenizer.save_pretrained(path)
     
     
     ### Return Predictions ###
