@@ -11,7 +11,6 @@ import torch
 
 from fast_bert.prediction import BertClassificationPredictor
 
-from pytorch_pretrained_bert.tokenization import BertTokenizer
 from fast_bert.utils.spellcheck import BingSpellCheck
 from pathlib import Path
 
@@ -43,9 +42,6 @@ class ScoringService(object):
         if cls.model == None:
             with open(PATH/'model_config.json') as f:
                 model_config = json.load(f)
-
-            predictor = BertClassificationPredictor(
-                PATH/'model_out', label_path=PATH, )
 
             predictor = BertClassificationPredictor(PATH/'model_out', label_path=PATH,
                                                     multi_label=bool(
