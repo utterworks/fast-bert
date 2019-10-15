@@ -5,13 +5,13 @@ from .data_cls import BertDataBunch
 from .learner_cls import BertLearner
 from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification, DistilBertForMultiLabelSequenceClassification
 
-from transformers import (WEIGHTS_NAME, 
-                                  BertConfig, BertForSequenceClassification, BertTokenizer,
-                                  XLMConfig, XLMForSequenceClassification, XLMTokenizer, 
-                                  XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer,
-                                  RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
-                                  DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer
-                                 )
+from transformers import (WEIGHTS_NAME,
+                          BertConfig, BertForSequenceClassification, BertTokenizer,
+                          XLMConfig, XLMForSequenceClassification, XLMTokenizer,
+                          XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer,
+                          RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
+                          DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer
+                          )
 
 import warnings
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
@@ -49,7 +49,7 @@ class BertClassificationPredictor(object):
         else:
             device = torch.device('cpu')
 
-        databunch = BertDataBunch(self.label_path, self.label_path, tokenizer, 
+        databunch = BertDataBunch(self.label_path, self.label_path, tokenizer,
                                   train_file=None, val_file=None,
                                   batch_size_per_gpu=32, max_seq_length=512,
                                   multi_gpu=False, multi_label=self.multi_label,

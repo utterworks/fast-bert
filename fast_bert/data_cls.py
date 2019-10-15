@@ -445,8 +445,8 @@ class BertDataBunch(object):
                 logger=self.logger)
 
             # Create folder if it doesn't exist
-            self.cache_dir.mkdir(exist_ok=True)
             if self.no_cache == False or no_cache == False:
+                self.cache_dir.mkdir(exist_ok=True)
                 self.logger.info(
                     "Saving features into cached file %s", cached_features_file)
                 torch.save(features, cached_features_file)
