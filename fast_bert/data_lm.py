@@ -265,4 +265,3 @@ class BertLMDataBunch(object):
 
         # The rest of the time (10% of the time) we keep the masked input tokens unchanged
         return inputs, labels
-

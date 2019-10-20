@@ -13,11 +13,11 @@ from torch.utils.data.distributed import DistributedSampler
 
 from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
 
-from transformers import (WEIGHTS_NAME, 
-                          BertTokenizer, 
-                          XLNetTokenizer, 
+from transformers import (WEIGHTS_NAME,
+                          BertTokenizer,
+                          XLNetTokenizer,
                           DistilBertTokenizer)
-                          
+
 
 TOKENIZER_CLASSES = {
     'bert': BertTokenizer,
@@ -63,7 +63,7 @@ class QAExample(object):
         if self.is_impossible:
             s += ", is_impossible: %r" % (self.is_impossible)
         return s
-    
+
 class InputFeatures(object):
     """A single set of features of data."""
 
@@ -192,7 +192,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
 
     features = []
     for (example_index, example) in enumerate(examples):
-        
+
         if example_index % 10000 == 0:
             if logger:
                 logger.info("Writing example {} of {}".format(example_index, len(examples)))
@@ -441,13 +441,13 @@ def _check_is_max_context(doc_spans, cur_span_index, position):
 class BertQADataBunch(object):
 
     def __init__(self, data_dir, tokenizer, train_file='train-v2.0.json', val_file='dev-v2.0.json', test_data=None,
-                 batch_size_per_gpu=16, 
+                 batch_size_per_gpu=16,
                  max_seq_length=512,
                  doc_stride=128,
                  max_query_length=64,
                  version_2_with_negative=True,
-                 multi_gpu=True, 
-                 model_type='bert', 
+                 multi_gpu=True,
+                 model_type='bert',
                  logger=None, clear_cache=False, no_cache=False):
 
         # just in case someone passes string instead of Path
@@ -483,10 +483,10 @@ class BertQADataBunch(object):
 
         if clear_cache:
             shutil.rmtree(self.cache_dir, ignore_errors=True)
-            
+
         # Create folder if it doesn't exist
         self.cache_dir.mkdir(exist_ok=True)
-        
+
         if train_file:
             # Train DataLoader
             train_examples = None
@@ -496,7 +496,7 @@ class BertQADataBunch(object):
                 str(self.max_seq_length),
                 str(self.doc_stride),
                 str(self.max_query_length)))
-            
+
             if os.path.exists(cached_features_file) and no_cache == False:
                 self.logger.info(
                     "Loading features from cached file %s", cached_features_file)
@@ -506,9 +506,9 @@ class BertQADataBunch(object):
                 self.logger.info("Creating features from dataset file at %s", training_file)
                 examples = read_examples(input_file=training_file,
                                          is_training=True,
-                                         version_2_with_negative=self.version_2_with_negative, 
+                                         version_2_with_negative=self.version_2_with_negative,
                                          logger=self.logger)
-                
+
                 features = convert_examples_to_features(examples=examples,
                                                 tokenizer=self.tokenizer,
                                                 logger=self.logger,
@@ -516,11 +516,11 @@ class BertQADataBunch(object):
                                                 doc_stride=self.doc_stride,
                                                 max_query_length=self.max_query_length,
                                                 is_training=True)
-                
+
                 if self.no_cache == False:
                     self.logger.info("Saving features into cached file %s", cached_features_file)
                     torch.save(features, cached_features_file)
-                
+
             # Convert to Tensors and build dataset
             all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
             all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
@@ -532,11 +532,11 @@ class BertQADataBunch(object):
             dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids,
                                     all_start_positions, all_end_positions,
                                     all_cls_index, all_p_mask)
-            
+
             self.train_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             train_sampler = RandomSampler(dataset)
             self.train_dl = DataLoader(dataset, sampler=train_sampler, batch_size=self.train_batch_size)
-        
+
         if val_file:
             # Val DataLoader
             train_examples = None
@@ -546,12 +546,12 @@ class BertQADataBunch(object):
                 str(self.max_seq_length),
                 str(self.doc_stride),
                 str(self.max_query_length)))
-            
+
             if os.path.exists(cached_features_file) and no_cache == False:
                 self.validation_file = str(self.data_dir/val_file)
                 examples = read_examples(input_file=self.validation_file,
                                          is_training=False,
-                                         version_2_with_negative=self.version_2_with_negative, 
+                                         version_2_with_negative=self.version_2_with_negative,
                                          logger=self.logger)
                 self.logger.info(
                     "Loading features from cached file %s", cached_features_file)
@@ -561,9 +561,9 @@ class BertQADataBunch(object):
                 self.logger.info("Creating features from dataset file at %s", self.validation_file)
                 examples = read_examples(input_file=self.validation_file,
                                          is_training=False,
-                                         version_2_with_negative=self.version_2_with_negative, 
+                                         version_2_with_negative=self.version_2_with_negative,
                                          logger=self.logger)
-                
+
                 features = convert_examples_to_features(examples=examples,
                                                 tokenizer=self.tokenizer,
                                                 logger=self.logger,
@@ -571,27 +571,26 @@ class BertQADataBunch(object):
                                                 doc_stride=self.doc_stride,
                                                 max_query_length=self.max_query_length,
                                                 is_training=False)
-                
+
                 if self.no_cache == False:
                     self.logger.info("Saving features into cached file %s", cached_features_file)
                     torch.save(features, cached_features_file)
-            
+
             # Save reference to validation features on the databunch object
-            self.val_features = features   
+            self.val_features = features
             self.val_examples = examples
-            
+
             # Convert to Tensors and build dataset
             all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
             all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
             all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
             all_cls_index = torch.tensor([f.cls_index for f in features], dtype=torch.long)
             all_p_mask = torch.tensor([f.p_mask for f in features], dtype=torch.float)
-            
+
             all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
             dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids,
                                     all_example_index, all_cls_index, all_p_mask)
-            
+
             self.val_batch_size = self.batch_size_per_gpu * 2 * max(1, self.n_gpu)
             val_sampler = SequentialSampler(dataset)
             self.val_dl = DataLoader(dataset, sampler=val_sampler, batch_size=self.train_batch_size)
-                

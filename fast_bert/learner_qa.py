@@ -17,7 +17,7 @@ from tensorboardX import SummaryWriter
 from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
 
 from transformers import (BertConfig, BertForQuestionAnswering,
-                          XLNetConfig, XLNetForQuestionAnswering, 
+                          XLNetConfig, XLNetForQuestionAnswering,
                           XLMConfig, XLMForQuestionAnswering,
                           DistilBertConfig, DistilBertForQuestionAnswering)
 
@@ -31,46 +31,46 @@ MODEL_CLASSES = {
 }
 
 class BertQALearner(Learner):
-    
+
     @staticmethod
-    def from_pretrained_model(dataBunch, pretrained_path, output_dir, device, logger, 
+    def from_pretrained_model(dataBunch, pretrained_path, output_dir, device, logger,
                               multi_gpu=True, is_fp16=True, warmup_steps=0, fp16_opt_level='O1',
-                              grad_accumulation_steps=1, max_grad_norm=1.0, adam_epsilon=1e-8, 
+                              grad_accumulation_steps=1, max_grad_norm=1.0, adam_epsilon=1e-8,
                               logging_steps=100):
-        
+
         model_state_dict = None
         model_type = dataBunch.model_type
-        
+
         config_class, model_class = MODEL_CLASSES[model_type]
-        
+
         config = config_class.from_pretrained(pretrained_path)
-        model = model_class.from_pretrained(pretrained_path, config=config)  
-            
+        model = model_class.from_pretrained(pretrained_path, config=config)
+
         model.to(device)
-        
+
         return BertQALearner(dataBunch, model, pretrained_path, output_dir, device, logger,
-                           multi_gpu, is_fp16, warmup_steps, fp16_opt_level, grad_accumulation_steps, 
+                           multi_gpu, is_fp16, warmup_steps, fp16_opt_level, grad_accumulation_steps,
                            max_grad_norm, adam_epsilon, logging_steps)
 
-    
+
     # Learner initialiser
     def __init__(self, data: BertQADataBunch, model: torch.nn.Module, pretrained_model_path, output_dir, device,logger,
                  multi_gpu=True, is_fp16=True, warmup_steps=0, fp16_opt_level='O1',
                  grad_accumulation_steps=1, max_grad_norm=1.0, adam_epsilon=1e-8, logging_steps=100):
-        
-        super(BertQALearner, self).__init__(data, model, pretrained_model_path, output_dir, device, logger, 
+
+        super(BertQALearner, self).__init__(data, model, pretrained_model_path, output_dir, device, logger,
                                             multi_gpu, is_fp16, warmup_steps, fp16_opt_level, grad_accumulation_steps,
                                             max_grad_norm, adam_epsilon, logging_steps)
-        
+
         self.validation_out = self.output_dir/'validation_out'
         self.validation_out.mkdir(exist_ok=True)
 
-    ### Train the model ###    
+    ### Train the model ###
     def fit(self, epochs, lr, validate=True, schedule_type="warmup_cosine", optimizer_type='lamb'):
-        
+
         tensorboard_dir = self.output_dir/'tensorboard'
         tensorboard_dir.mkdir(exist_ok=True)
-        
+
         # Train the model
         tb_writer = SummaryWriter(tensorboard_dir)
 
@@ -80,28 +80,28 @@ class BertQALearner(Learner):
             self.epochs = self.max_steps // len(train_dataloader) // self.grad_accumulation_steps + 1
         else:
             t_total = len(train_dataloader) // self.grad_accumulation_steps * epochs
-        
+
         # Prepare optimiser
         optimizer = self.get_optimizer(lr, optimizer_type=optimizer_type)
-        
+
         # get the base model if its already wrapped around DataParallel
         if hasattr(self.model, 'module'):
             self.model = self.model.module
-        
+
         if self.is_fp16:
             try:
                 from apex import amp
             except ImportError:
                 raise ImportError('Please install apex to use fp16 training')
             self.model, optimizer = amp.initialize(self.model, optimizer, opt_level=self.fp16_opt_level)
-        
+
         # Get scheduler
         scheduler = self.get_scheduler(optimizer, t_total=t_total, schedule_type=schedule_type)
-        
+
         # Parallelize the model architecture
         if self.multi_gpu == True:
             self.model = torch.nn.DataParallel(self.model)
-            
+
         # Start Training
         self.logger.info("***** Running training *****")
         self.logger.info("  Num examples = %d", len(train_dataloader.dataset))
@@ -116,7 +116,7 @@ class BertQALearner(Learner):
         tr_loss, logging_loss, epoch_loss = 0.0, 0.0, 0.0
         self.model.zero_grad()
         pbar = master_bar(range(epochs))
-        
+
         for epoch in pbar:
             epoch_step = 0
             epoch_loss = 0.0
@@ -124,16 +124,16 @@ class BertQALearner(Learner):
                 self.model.train()
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = {'input_ids':       batch[0],
-                          'attention_mask':  batch[1], 
-                          'token_type_ids':  None if self.model_type == 'xlm' else batch[2],  
-                          'start_positions': batch[3], 
+                          'attention_mask':  batch[1],
+                          'token_type_ids':  None if self.model_type == 'xlm' else batch[2],
+                          'start_positions': batch[3],
                           'end_positions':   batch[4]}
-                
+
                 if self.model_type in ['xlnet', 'xlm']:
                     inputs.update({'cls_index': batch[5],
                                    'p_mask':    batch[6]})
-                
-                    
+
+
                 outputs = self.model(**inputs)
                 loss = outputs[0]  # model outputs are always tuple in pytorch-transformers (see doc)
 
@@ -151,11 +151,11 @@ class BertQALearner(Learner):
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
 
                 tr_loss += loss.item()
-                epoch_loss += loss.item() 
+                epoch_loss += loss.item()
                 if (step + 1) % self.grad_accumulation_steps == 0:
                     optimizer.step()
                     scheduler.step()
-                    
+
                     self.model.zero_grad()
                     global_step += 1
                     epoch_step += 1
@@ -167,51 +167,51 @@ class BertQALearner(Learner):
                             for key, value in results.items():
                                 tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
                                 self.logger.info("eval_{} after step {}: {}: ".format(key, global_step, value))
-                        
+
                         # Log metrics
                         self.logger.info("lr after step {}: {}".format(global_step, scheduler.get_lr()[0]))
                         self.logger.info("train_loss after step {}: {}".format(global_step, (tr_loss - logging_loss)/self.logging_steps))
                         tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar('loss', (tr_loss - logging_loss)/self.logging_steps, global_step)
 
-                        
+
                         logging_loss = tr_loss
-            
+
             # Evaluate the model after every epoch
             if validate:
                 results = self.validate("epoch_{}".format(epoch+1))
                 for key, value in results.items():
                     self.logger.info("eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value))
-                
+
             # Log metrics
             self.logger.info("lr after epoch {}: {}".format((epoch + 1), scheduler.get_lr()[0]))
-            self.logger.info("train_loss after epoch {}: {}".format((epoch + 1), epoch_loss/epoch_step))  
+            self.logger.info("train_loss after epoch {}: {}".format((epoch + 1), epoch_loss/epoch_step))
             self.logger.info("\n")
-            
+
         tb_writer.close()
-        return global_step, tr_loss / global_step   
-    
-    ### Evaluate the model    
+        return global_step, tr_loss / global_step
+
+    ### Evaluate the model
     def validate(self, prefix="SQUAD", n_best_size=20, max_answer_length=30, verbose_logging=False, null_score_diff_threshold=0.0):
         self.logger.info("Running evaluation")
-        
+
         self.logger.info("  Num examples = %d", len(self.data.val_dl.dataset))
         self.logger.info("  Batch size = %d", self.data.val_batch_size)
-        
+
         all_logits = None
         all_labels = None
-        
-        
+
+
         eval_loss, eval_accuracy = 0, 0
         nb_eval_steps, nb_eval_examples = 0, 0
-        
+
         preds = None
         out_label_ids = None
         all_results = []
         for step, batch in enumerate(progress_bar(self.data.val_dl)):
             self.model.eval()
             batch = tuple(t.to(self.device) for t in batch)
-            
+
             with torch.no_grad():
                 inputs = {'input_ids':      batch[0],
                           'attention_mask': batch[1],
@@ -225,7 +225,7 @@ class BertQALearner(Learner):
                 outputs = self.model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
                 eval_loss += tmp_eval_loss.mean().item()
-            
+
             for i, example_index in enumerate(example_indices):
                 eval_feature = self.data.val_features[example_index.item()]
                 unique_id = int(eval_feature.unique_id)
@@ -242,9 +242,9 @@ class BertQALearner(Learner):
                                        start_logits = to_list(outputs[0][i]),
                                        end_logits   = to_list(outputs[1][i]))
                 all_results.append(result)
-            
+
             nb_eval_steps += 1
-            
+
         # Compute predictions
         output_prediction_file = os.path.join(self.validation_out, "predictions_{}.json".format(prefix))
         output_nbest_file = os.path.join(self.validation_out, "nbest_predictions_{}.json".format(prefix))
@@ -272,7 +272,7 @@ class BertQALearner(Learner):
                                      na_prob_file=output_null_log_odds_file)
         results = evaluate_on_squad(evaluate_options)
         return results
-    
+
 RawResult = collections.namedtuple("RawResult",
                                    ["unique_id", "start_logits", "end_logits"])
 
@@ -412,7 +412,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                         text="",
                         start_logit=null_start_logit,
                         end_logit=null_end_logit))
-                
+
             # In very rare edge cases we could only have single null prediction.
             # So we just create a nonce prediction in this case to avoid failure.
             if len(nbest)==1:
@@ -569,7 +569,7 @@ def write_predictions_extended(all_examples, all_features, all_results, n_best_s
 
             # XLNet un-tokenizer
             # Let's keep it simple for now and see if we need all this later.
-            # 
+            #
             # tok_start_to_orig_index = feature.tok_start_to_orig_index
             # tok_end_to_orig_index = feature.tok_end_to_orig_index
             # start_orig_pos = tok_start_to_orig_index[pred.start_index]

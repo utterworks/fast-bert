@@ -200,7 +200,7 @@ class NERTextProcessor(DataProcessor):
         '''
         read file
         return format :
-        [ ['EU', 'B-ORG'], ['rejects', 'O'], ['German', 'B-MISC'], ['call', 'O'], ['to', 'O'], ['boycott', 'O'], 
+        [ ['EU', 'B-ORG'], ['rejects', 'O'], ['German', 'B-MISC'], ['call', 'O'], ['to', 'O'], ['boycott', 'O'],
         ['British', 'B-MISC'], ['lamb', 'O'], ['.', 'O'] ]
         '''
         f = open(filename)
@@ -350,13 +350,13 @@ class BertDataBunch(object):
     def __init__(self, data_dir, label_dir, tokenizer, train_file='train.csv', val_file='val.csv', test_data=None,
                  label_file='labels.csv', text_col='text', label_col='label', bs=32, maxlen=512,
                  multi_gpu=True, multi_label=False, backend="nccl", model_type='bert'):
-        
+
         if isinstance(tokenizer, str):
             _,_,tokenizer_class = MODEL_CLASSES[model_type]
             # instantiate the new tokeniser object using the tokeniser name
             tokenizer = tokenizer_class.from_pretrained(tokenizer, do_lower_case=('uncased' in tokenizer))
 
-        self.tokenizer = tokenizer  
+        self.tokenizer = tokenizer
         self.data_dir = data_dir
         self.maxlen = maxlen
         self.bs = bs
@@ -447,7 +447,7 @@ class BertDataBunch(object):
                     torch.distributed.init_process_group(backend=backend,
                                                          init_method="tcp://localhost:23459",
                                                          rank=0, world_size=1)
-                    
+
                 except:
                     pass
 
