@@ -1,21 +1,32 @@
 import os
-from .data_cls import BertDataBunch, InputExample, InputFeatures
-from .learner_util import Learner
-
-from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification, DistilBertForMultiLabelSequenceClassification
-
 from pathlib import Path
 
-from torch.optim.lr_scheduler import _LRScheduler, Optimizer
-
+from fastai.callback import *
+from fastai.torch_core import *
+from fastprogress.fastprogress import master_bar
+from fastprogress.fastprogress import progress_bar
+import numpy as np
+import pandas as pd
+import torch
+from torch.optim.lr_scheduler import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 from tensorboardX import SummaryWriter
-
 from transformers import (WEIGHTS_NAME,
                           BertConfig,BertForSequenceClassification, BertTokenizer,
                           XLMConfig, XLMForSequenceClassification,XLMTokenizer,
                           XLNetConfig,XLNetForSequenceClassification,XLNetTokenizer,
                           RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
                           DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
+
+from .data_cls import BertDataBunch, InputExample, InputFeatures
+from .bert_layers import BertLayerNorm
+from .learner_util import Learner
+from .modeling import BertForMultiLabelSequenceClassification, XLNetForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification, DistilBertForMultiLabelSequenceClassification
+
+try:
+    from apex.normalization.fused_layer_norm import FusedLayerNorm
+except:
+    from .bert_layers import BertLayerNorm as FusedLayerNorm
 
 
 MODEL_CLASSES = {
@@ -27,30 +38,17 @@ MODEL_CLASSES = {
 }
 
 
-from transformers import BertForSequenceClassification
-from .bert_layers import BertLayerNorm
-from fastprogress.fastprogress import master_bar, progress_bar
-import torch
-import pandas as pd
-import numpy as np
-from sklearn.metrics import roc_curve, auc
-
-from fastai.torch_core import *
-from fastai.callback import *
-
-try:
-    from apex.normalization.fused_layer_norm import FusedLayerNorm
-except:
-    from .bert_layers import BertLayerNorm as FusedLayerNorm
-
-
 class BertLearner(Learner):
 
-    @staticmethod
-    def from_pretrained_model(dataBunch, pretrained_path, output_dir, metrics, device, logger, finetuned_wgts_path=None,
+    @classmethod
+    def from_pretrained_model(cls, dataBunch, pretrained_path, output_dir, metrics, device, logger, finetuned_wgts_path=None,
                               multi_gpu=True, is_fp16=True, loss_scale=0, warmup_steps=0, fp16_opt_level='O1',
                               grad_accumulation_steps=1, multi_label=False, max_grad_norm=1.0, adam_epsilon=1e-8,
                               logging_steps=100):
+        """ Instantiate a BertLearner instance from a pretrained model.
+
+        :return fast_bert.learner_cls.BertLearner:
+        """
 
         model_state_dict = None
 
@@ -73,7 +71,7 @@ class BertLearner(Learner):
         model.to(device)
 
 
-        return BertLearner(dataBunch, model, pretrained_path, output_dir, metrics, device, logger,
+        return cls(dataBunch, model, pretrained_path, output_dir, metrics, device, logger,
                            multi_gpu, is_fp16, loss_scale, warmup_steps, fp16_opt_level, grad_accumulation_steps,
                            multi_label, max_grad_norm, adam_epsilon, logging_steps)
 
