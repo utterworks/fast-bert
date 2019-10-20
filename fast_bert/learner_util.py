@@ -10,6 +10,7 @@ from transformers import (ConstantLRSchedule,
                          )
 from pytorch_lamb import Lamb
 
+
 class Learner(object):
 
     def __init__(self, data, model, pretrained_model_path, output_dir, device, logger,
@@ -44,9 +45,14 @@ class Learner(object):
         if self.multi_gpu:
             self.n_gpu = torch.cuda.device_count()
 
-
-    # Get the optimiser object
     def get_optimizer(self, lr, optimizer_type='lamb'):
+        """ Get the optimizer object.
+
+        :param float lr:
+        :param str optimizer_type:
+        :raises Exception: If the optimizer type is unknown.
+        :return mixed:
+        """
 
         # Prepare optimiser and schedule
         no_decay = {'bias', 'LayerNorm.weight'}
@@ -63,17 +69,18 @@ class Learner(object):
         ]
 
         if optimizer_type == 'lamb':
-            optimizer = Lamb(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
-        elif optimizer_type == 'adamw':
-            optimizer = AdamW(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
-        elif:
-            raise Exception('Unknown optimizer type: %s' % optimizer_type)
+            return Lamb(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
 
-        return optimizer
+        if optimizer_type == 'adamw':
+            return AdamW(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
 
-    # Get learning rate scheduler
+        raise Exception('Unknown optimizer type: %s' % optimizer_type)
+
     def get_scheduler(self, optimizer, t_total, schedule_type='warmup_linear'):
+        """ Get the learning rate scheduler.
 
+        :return mixed:
+        """
         SCHEDULES = {
             None: ConstantLRSchedule,
             'none': ConstantLRSchedule,
