@@ -24,7 +24,7 @@ class InputExample(object):
     """A single training/test example for simple sequence classification."""
 
     def __init__(self, guid, text_a, text_b=None, label=None):
-        """Constructs a InputExample.
+        """Constructs an InputExample.
 
         Args:
             guid: Unique id for the example.

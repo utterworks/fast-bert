@@ -1,27 +1,27 @@
-import os
-import torch
-import pandas as pd
-import numpy as np
-from pathlib import Path
 import collections
-import math
 from io import open
 import json
-
-from .data_qa import BertQADataBunch
-from .learner_util import Learner
+import math
+import os
+from pathlib import Path
 
 from fastprogress.fastprogress import master_bar, progress_bar
 from tensorboardX import SummaryWriter
-
 from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
-
 from transformers import (BertConfig, BertForQuestionAnswering,
                           XLNetConfig, XLNetForQuestionAnswering,
                           XLMConfig, XLMForQuestionAnswering,
                           DistilBertConfig, DistilBertForQuestionAnswering)
+import numpy as np
+import pandas as pd
+import torch
+
+from .data_qa import BertQADataBunch
+from .learner_util import Learner
+
 
 from .utils_squad_evaluate import EVAL_OPTS, main as evaluate_on_squad
+
 
 MODEL_CLASSES = {
     'bert': (BertConfig, BertForQuestionAnswering),
@@ -30,10 +30,11 @@ MODEL_CLASSES = {
     'distilbert': (DistilBertConfig, DistilBertForQuestionAnswering)
 }
 
+
 class BertQALearner(Learner):
 
-    @staticmethod
-    def from_pretrained_model(dataBunch, pretrained_path, output_dir, device, logger,
+    @classmethod
+    def from_pretrained_model(cls, dataBunch, pretrained_path, output_dir, device, logger,
                               multi_gpu=True, is_fp16=True, warmup_steps=0, fp16_opt_level='O1',
                               grad_accumulation_steps=1, max_grad_norm=1.0, adam_epsilon=1e-8,
                               logging_steps=100):
@@ -48,7 +49,7 @@ class BertQALearner(Learner):
 
         model.to(device)
 
-        return BertQALearner(dataBunch, model, pretrained_path, output_dir, device, logger,
+        return cls(dataBunch, model, pretrained_path, output_dir, device, logger,
                            multi_gpu, is_fp16, warmup_steps, fp16_opt_level, grad_accumulation_steps,
                            max_grad_norm, adam_epsilon, logging_steps)
 

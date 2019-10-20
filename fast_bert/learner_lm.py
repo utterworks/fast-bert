@@ -22,8 +22,8 @@ MODEL_CLASSES = {
 
 class BertLMLearner(Learner):
 
-    @staticmethod
-    def from_pretrained_model(dataBunch, pretrained_path, output_dir, metrics, device, logger,
+    @classmethod
+    def from_pretrained_model(cls, dataBunch, pretrained_path, output_dir, metrics, device, logger,
                               multi_gpu=True, is_fp16=True, warmup_steps=0, fp16_opt_level='O1',
                               grad_accumulation_steps=1, max_grad_norm=1.0, adam_epsilon=1e-8,
                               logging_steps=100):
@@ -38,7 +38,7 @@ class BertLMLearner(Learner):
 
         model.to(device)
 
-        return BertLMLearner(dataBunch, model, pretrained_path, output_dir, metrics, device, logger,
+        return cls(dataBunch, model, pretrained_path, output_dir, metrics, device, logger,
                            multi_gpu, is_fp16, warmup_steps, fp16_opt_level, grad_accumulation_steps,
                            max_grad_norm, adam_epsilon, logging_steps)
 

@@ -3,8 +3,13 @@ from torch import nn
 
 
 class BertLayerNorm(nn.Module):
+
     def __init__(self, hidden_size, eps=1e-12):
         """Construct a layernorm module in the TF style (epsilon inside the square root).
+
+        :param int hidden_size:
+        :param float eps:
+        :return void:
         """
         super(BertLayerNorm, self).__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
