@@ -59,7 +59,7 @@ class BingSpellCheck(object):
         :param list flagged_tokens:
         :return str:
         """
-        for flagged_ in flagged_tokens:
+        for flagged in flagged_tokens:
             text = text.replace(flagged['token'], flagged['suggestions'][0]['suggestion'])
 
         return text
