@@ -305,6 +305,9 @@ class BertDataBunch(object):
 
         self.tokenizer = tokenizer
         self.data_dir = data_dir
+        self.train_file = train_file
+        self.val_file = val_file
+        self.test_data = test_data
         self.cache_dir = data_dir/'cache'
         self.max_seq_length = max_seq_length
         self.batch_size_per_gpu = batch_size_per_gpu
@@ -335,18 +338,19 @@ class BertDataBunch(object):
         if train_file:
             # Train DataLoader
             train_examples = None
-            cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
+            cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}_{}'.format(
                 self.model_type,
                 'train',
                 'multi_label' if self.multi_label else 'multi_class',
-                str(self.max_seq_length)))
+                str(self.max_seq_length),
+                os.path.basename(train_file)))
 
-            if os.path.exists(cached_features_file) == False:
+            if os.path.exists(cached_features_file) == False or self.no_cache == True:
                 train_examples = processor.get_train_examples(
                     train_file, text_col=text_col, label_col=label_col)
 
             train_dataset = self.get_dataset_from_examples(
-                train_examples, 'train')
+                train_examples, 'train', no_cache=self.no_cache)
 
             self.train_batch_size = self.batch_size_per_gpu * \
                 max(1, self.n_gpu)
@@ -357,11 +361,12 @@ class BertDataBunch(object):
         if val_file:
             # Validation DataLoader
             val_examples = None
-            cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
+            cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}_{}'.format(
                 self.model_type,
                 'dev',
                 'multi_label' if self.multi_label else 'multi_class',
-                str(self.max_seq_length)))
+                str(self.max_seq_length),
+                os.path.basename(val_file))) 
 
             if os.path.exists(cached_features_file) == False:
                 val_examples = processor.get_dev_examples(
@@ -416,11 +421,19 @@ class BertDataBunch(object):
 
     def get_dataset_from_examples(self, examples, set_type='train', is_test=False, no_cache=False):
 
-        cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}'.format(
+        if set_type == 'train':
+            file_name = self.train_file
+        elif set_type == 'dev':
+            file_name = self.val_file
+        elif set_type == 'test':
+            file_name = self.test_data
+        
+        cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}_{}'.format(
             self.model_type,
             set_type,
             'multi_label' if self.multi_label else 'multi_class',
-            str(self.max_seq_length)))
+            str(self.max_seq_length),
+            os.path.basename(file_name)))
 
         if os.path.exists(cached_features_file) and no_cache == False:
             self.logger.info(
