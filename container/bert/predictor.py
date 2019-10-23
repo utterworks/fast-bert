@@ -94,6 +94,15 @@ def ping():
     return flask.Response(response='\n', status=status, mimetype='application/json')
 
 
+@app.route('/ execution-parameters', method=['GET'])
+def get_execution_parameters():
+    params = {'MaxConcurrentTransforms': 3,
+              'BatchStrategy': 'MULTI_RECORD',
+              'MaxPayloadInMB': 6
+              }
+    return flask.Response(response=json.dumps(params), status='200', mimetype='application/json')
+
+
 @app.route('/invocations', methods=['POST'])
 def transformation():
     """Do an inference on a single batch of data. In this sample server, we take data as CSV, convert
