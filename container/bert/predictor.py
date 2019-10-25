@@ -94,7 +94,7 @@ def ping():
     return flask.Response(response='\n', status=status, mimetype='application/json')
 
 
-@app.route('/ execution-parameters', method=['GET'])
+@app.route('/ execution-parameters', methods=['GET'])
 def get_execution_parameters():
     params = {'MaxConcurrentTransforms': 3,
               'BatchStrategy': 'MULTI_RECORD',
