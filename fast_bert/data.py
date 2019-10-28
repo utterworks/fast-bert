@@ -3,6 +3,7 @@ import os
 import torch
 from pathlib import Path
 import pickle
+from joblib import Parallel, delayed
 
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -72,70 +73,78 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
         else:
             tokens_b.pop()
 
+def convert_example_to_features(example, ex_index, label_map, label_list, max_seq_length, tokenizer):
+    '''
+    Converts example into a InputFeatures
+    '''
+    try:
+        tokens_a = tokenizer.tokenize(example.text_a)
+    except:
+        print("Cannot tokenise item {}, Text:{}".format(
+            ex_index, example.text_a))
+
+    tokens_b = None
+    if example.text_b:
+        tokens_b = tokenizer.tokenize(example.text_b)
+        # Modifies `tokens_a` and `tokens_b` in place so that the total
+        # length is less than the specified length.
+        # Account for [CLS], [SEP], [SEP] with "- 3"
+        _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
+    else:
+        # Account for [CLS] and [SEP] with "- 2"
+        if len(tokens_a) > max_seq_length - 2:
+            tokens_a = tokens_a[:(max_seq_length - 2)]
+
+    tokens = ["[CLS]"] + tokens_a + ["[SEP]"]
+    segment_ids = [0] * len(tokens)
+
+    if tokens_b:
+        tokens += tokens_b + ["[SEP]"]
+        segment_ids += [1] * (len(tokens_b) + 1)
+
+    input_ids = tokenizer.convert_tokens_to_ids(tokens)
+
+    # The mask has 1 for real tokens and 0 for padding tokens. Only real
+    # tokens are attended to.
+    input_mask = [1] * len(input_ids)
+
+    # Zero-pad up to the sequence length.
+    padding = [0] * (max_seq_length - len(input_ids))
+    input_ids += padding
+    input_mask += padding
+    segment_ids += padding
+
+    assert len(input_ids) == max_seq_length
+    assert len(input_mask) == max_seq_length
+    assert len(segment_ids) == max_seq_length
+
+    if isinstance(example.label, list):
+        label_id = []
+        for label in example.label:
+            label_id.append(float(label))
+    else:
+        if example.label != None:
+            label_id = label_map[example.label]
+        else:
+            label_id = ''
+            
+    return InputFeatures(input_ids=input_ids,
+                          input_mask=input_mask,
+                          segment_ids=segment_ids,
+                          label_id=label_id)
 
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
 
     label_map = {label: i for i, label in enumerate(label_list)}
-
-    features = []
-    for (ex_index, example) in enumerate(examples):
-        try:
-            tokens_a = tokenizer.tokenize(example.text_a)
-        except:
-            print("Cannot tokenise item {}, Text:{}".format(
-                ex_index, example.text_a))
-
-        tokens_b = None
-        if example.text_b:
-            tokens_b = tokenizer.tokenize(example.text_b)
-            # Modifies `tokens_a` and `tokens_b` in place so that the total
-            # length is less than the specified length.
-            # Account for [CLS], [SEP], [SEP] with "- 3"
-            _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
-        else:
-            # Account for [CLS] and [SEP] with "- 2"
-            if len(tokens_a) > max_seq_length - 2:
-                tokens_a = tokens_a[:(max_seq_length - 2)]
-
-        tokens = ["[CLS]"] + tokens_a + ["[SEP]"]
-        segment_ids = [0] * len(tokens)
-
-        if tokens_b:
-            tokens += tokens_b + ["[SEP]"]
-            segment_ids += [1] * (len(tokens_b) + 1)
-
-        input_ids = tokenizer.convert_tokens_to_ids(tokens)
-
-        # The mask has 1 for real tokens and 0 for padding tokens. Only real
-        # tokens are attended to.
-        input_mask = [1] * len(input_ids)
-
-        # Zero-pad up to the sequence length.
-        padding = [0] * (max_seq_length - len(input_ids))
-        input_ids += padding
-        input_mask += padding
-        segment_ids += padding
-
-        assert len(input_ids) == max_seq_length
-        assert len(input_mask) == max_seq_length
-        assert len(segment_ids) == max_seq_length
-
-        if isinstance(example.label, list):
-            label_id = []
-            for label in example.label:
-                label_id.append(float(label))
-        else:
-            if example.label != None:
-                label_id = label_map[example.label]
-            else:
-                label_id = ''
-
-        features.append(
-            InputFeatures(input_ids=input_ids,
-                          input_mask=input_mask,
-                          segment_ids=segment_ids,
-                          label_id=label_id))
+    
+    conversion_processes = []
+    for ex_index, (example, label) in enumerate(zip(examples, label_list)):
+        conversion_processes.append(delayed(convert_example_to_features)(
+                example, ex_index, label_map,label_list, max_seq_length, tokenizer)
+        )
+    features = Parallel(n_jobs=-1, verbose=0, backend="multiprocessing")(conversion_processes)
+    
     return features
 
 
