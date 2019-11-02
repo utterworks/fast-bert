@@ -419,6 +419,12 @@ class BertDataBunch(object):
         test_sampler = SequentialSampler(test_dataset)
         return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu)
 
+    def save(self, filename="databunch.pkl"):
+        tmp_path = self.data_dir/'tmp'
+        tmp_path.mkdir(exist_ok=True)
+        with open(str(tmp_path/filename), "wb") as f:
+            pickle.dump(self, f)
+
     def get_dataset_from_examples(self, examples, set_type='train', is_test=False, no_cache=False):
 
         if set_type == 'train':
