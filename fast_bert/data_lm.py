@@ -266,3 +266,9 @@ class BertLMDataBunch(object):
         # The rest of the time (10% of the time) we keep the masked input tokens unchanged
         return inputs, labels
 
+    def save(self, filename="databunch.pkl"):
+        tmp_path = self.data_dir/'tmp'
+        tmp_path.mkdir(exist_ok=True)
+        with open(str(tmp_path/filename), "wb") as f:
+            pickle.dump(self, f)
+
