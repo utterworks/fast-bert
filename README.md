@@ -124,7 +124,7 @@ insult
 identity_hate
 ```
 
-The file **train.csv** will then contain one column for each label, with each column value being either 0 or 1.
+The file **train.csv** will then contain one column for each label, with each column value being either 0 or 1. Don't forget to change `multi_label=True` for multi-label classification in `BertDataBunch`.
 
 | id  | text                                                                       | toxic | severe_toxic | obscene | threat | insult | identity_hate |
 | --- | -------------------------------------------------------------------------- | ----- | ------------ | ------- | ------ | ------ | ------------- |
@@ -202,7 +202,7 @@ learner = BertLearner.from_pretrained_model(
 ```python
 learner.fit(epochs=6,
 			lr=6e-5,
-			validate=True. 	# Evaluate the model after each epoch
+			validate=True, 	# Evaluate the model after each epoch
 			schedule_type="warmup_cosine",
 			optimizer_type="lamb")
 ```
@@ -378,7 +378,7 @@ learner = BertLMLearner.from_pretrained_model(
 ```python
 learner.fit(epochs=6,
 			lr=6e-5,
-			validate=True. 	# Evaluate the model after each epoch
+			validate=True, 	# Evaluate the model after each epoch
 			schedule_type="warmup_cosine",
 			optimizer_type="lamb")
 ```
