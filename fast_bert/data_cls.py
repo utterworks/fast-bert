@@ -426,7 +426,7 @@ class BertDataBunch(object):
         elif set_type == 'dev':
             file_name = self.val_file
         elif set_type == 'test':
-            file_name = self.test_data
+            file_name = 'test.csv'
         
         cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}_{}'.format(
             self.model_type,
