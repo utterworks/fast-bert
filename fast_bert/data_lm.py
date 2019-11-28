@@ -103,6 +103,7 @@ class TextDataset(Dataset):
                 tokenizer.tokenize(text))
 
             while len(tokenized_text) >= block_size:  # Truncate in block of block_size
+
                 self.examples.append(tokenizer.build_inputs_with_special_tokens(
                     tokenized_text[:block_size]))
                 tokenized_text = tokenized_text[block_size:]
@@ -265,4 +266,10 @@ class BertLMDataBunch(object):
 
         # The rest of the time (10% of the time) we keep the masked input tokens unchanged
         return inputs, labels
+    
+    def save(self, filename="databunch.pkl"):
+        tmp_path = self.data_dir/'tmp'
+        tmp_path.mkdir(exist_ok=True)
+        with open(str(tmp_path/filename), "wb") as f:
+            pickle.dump(self, f)
 
