@@ -103,7 +103,8 @@ class TextDataset(Dataset):
                 tokenizer.tokenize(text))
 
             while len(tokenized_text) >= block_size:  # Truncate in block of block_size
-                self.examples.append(tokenizer.add_special_tokens_single_sequence(
+
+                self.examples.append(tokenizer.build_inputs_with_special_tokens(
                     tokenized_text[:block_size]))
                 tokenized_text = tokenized_text[block_size:]
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
