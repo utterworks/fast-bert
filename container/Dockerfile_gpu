@@ -11,18 +11,18 @@ RUN test $py_version || exit 1
 RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa -y && \
     apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        curl \
-        jq \
-        git \
-        libsm6 \
-        libxext6 \
-        libxrender-dev \
-        nginx && \
+    build-essential \
+    curl \
+    jq \
+    git \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    nginx && \
     if [ $py_version -eq 3 ]; \
-       then apt-get install -y --no-install-recommends python3.7-dev \
-           && ln -s -f /usr/bin/python3.7 /usr/bin/python; \
-       else apt-get install -y --no-install-recommends python-dev; fi && \
+    then apt-get install -y --no-install-recommends python3.7-dev \
+    && ln -s -f /usr/bin/python3.7 /usr/bin/python; \
+    else apt-get install -y --no-install-recommends python-dev; fi && \
     rm -rf /var/lib/apt/lists/*
 
 #ENV CUDNN_VERSION 7.5.0.56
@@ -55,16 +55,16 @@ RUN nvcc --version
 RUN which nvcc
 
 RUN pip --no-cache-dir install \
-        flask \
-        pathlib \
-        gunicorn \
-        gevent \
-        scipy \
-        sklearn \
-        pandas \
-        fastprogress \
-        python-box \
-        tensorboardX
+    flask \
+    pathlib \
+    gunicorn \
+    gevent \
+    scipy \
+    sklearn \
+    pandas \
+    fastprogress \
+    python-box \
+    tensorboardX
 
 RUN ls
 RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
@@ -79,7 +79,7 @@ WORKDIR /opt/ml/code
 
 RUN cd $WORKDIR
 
-RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased roberta-base distilbert-base-uncased
+RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased roberta-base distilbert-base-uncased distilroberta-base
 
 
 

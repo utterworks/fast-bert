@@ -17,6 +17,8 @@ from transformers import (WEIGHTS_NAME, BertConfig,
                           XLNetForSequenceClassification,
                           XLNetTokenizer,
                           RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
+                          CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer,
+                          AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer,
                           DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
 
 MODEL_CLASSES = {
@@ -24,7 +26,9 @@ MODEL_CLASSES = {
     'xlnet': (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
     'xlm': (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
     'roberta': (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-    'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
+    'albert': (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
+    'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
+    'camembert': (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
 }
 
 
@@ -372,7 +376,7 @@ class BertDataBunch(object):
                 val_examples = processor.get_dev_examples(
                     val_file, text_col=text_col, label_col=label_col)
 
-            val_dataset = self.get_dataset_from_examples(val_examples, 'dev')
+            val_dataset = self.get_dataset_from_examples(val_examples, 'dev', no_cache=self.no_cache)
 
             # no grads necessary, hence double val batch size
             self.val_batch_size = self.batch_size_per_gpu * \
@@ -394,7 +398,7 @@ class BertDataBunch(object):
                 })
 
             test_dataset = self.get_dataset_from_examples(
-                test_examples, 'test', is_test=True)
+                test_examples, 'test', is_test=True, no_cache=self.no_cache)
 
             self.test_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             test_sampler = SequentialSampler(test_dataset)
@@ -432,7 +436,7 @@ class BertDataBunch(object):
         elif set_type == 'dev':
             file_name = self.val_file
         elif set_type == 'test':
-            file_name = self.test_data
+            file_name = 'test' # test is not supposed to be a file - just a list of texts
         
         cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}_{}'.format(
             self.model_type,
@@ -464,7 +468,7 @@ class BertDataBunch(object):
                 logger=self.logger)
 
             # Create folder if it doesn't exist
-            if self.no_cache == False or no_cache == False:
+            if no_cache == False:
                 self.cache_dir.mkdir(exist_ok=True)
                 self.logger.info(
                     "Saving features into cached file %s", cached_features_file)

@@ -99,7 +99,6 @@ def ping():
     return flask.Response(response="\n", status=status, mimetype="application/json")
 
 
-
 # @app.route("/execution-parameters", method=["GET"])
 # def get_execution_parameters():
 #     params = {
@@ -110,7 +109,6 @@ def ping():
 #     return flask.Response(
 #         response=json.dumps(params), status="200", mimetype="application/json"
 #     )
-
 
 
 @app.route("/invocations", methods=["POST"])

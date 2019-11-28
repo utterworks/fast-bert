@@ -1,5 +1,5 @@
-torch>=1.2.0
-fastai
+torch>=1.3.0
 pytorch-lamb
 tensorboardX
-transformers>=2.0.0
+sklearn
+transformers>=2.2.0
