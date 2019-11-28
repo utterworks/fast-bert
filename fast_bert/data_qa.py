@@ -594,4 +594,10 @@ class BertQADataBunch(object):
             self.val_batch_size = self.batch_size_per_gpu * 2 * max(1, self.n_gpu)
             val_sampler = SequentialSampler(dataset)
             self.val_dl = DataLoader(dataset, sampler=val_sampler, batch_size=self.train_batch_size)
+
+    def save(self, filename="databunch.pkl"):
+        tmp_path = self.data_dir/'tmp'
+        tmp_path.mkdir(exist_ok=True)
+        with open(str(tmp_path/filename), "wb") as f:
+            pickle.dump(self, f)
                 
