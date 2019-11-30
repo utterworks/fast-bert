@@ -59,16 +59,18 @@ class Learner(object):
     # Get learning rate scheduler
     def get_scheduler(self, optimizer, t_total, schedule_type='warmup_linear'):
 
-        SCHEDULES = {
-            None:       transformers.get_constant_schedule(optimizer),
-            "none":     transformers.get_constant_schedule(optimizer),
-            "warmup_cosine": transformers.get_cosine_schedule_with_warmup(optimizer, self.warmup_steps, t_total),
-            "warmup_constant": transformers.get_constant_schedule_with_warmup(optimizer, self.warmup_steps),
-            "warmup_linear": transformers.get_linear_schedule_with_warmup(optimizer, self.warmup_steps, t_total),
-            "warmup_cosine_hard_restarts": transformers.get_cosine_with_hard_restarts_schedule_with_warmup(optimizer, self.warmup_steps, t_total)
-        }
+        if schedule_type is None or schedule_type == 'none':
+            scheduler = transformers.get_constant_schedule(optimizer)
+        elif schedule_type == 'warmup_cosine':
+            scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, self.warmup_steps, t_total)
+        elif schedule_type == 'warmup_constant':
+            scheduler = transformers.get_constant_schedule_with_warmup(optimizer, self.warmup_steps)
+        elif schedule_type == 'warmup_linear':
+            scheduler = transformers.get_linear_schedule_with_warmup(optimizer, self.warmup_steps, t_total)
+        elif schedule_type == 'warmup_cosine_hard_restarts':
+            scheduler = transformers.get_cosine_with_hard_restarts_schedule_with_warmup(optimizer, self.warmup_steps, t_total)
 
-        return SCHEDULES[schedule_type](optimizer, warmup_steps=self.warmup_steps, t_total=t_total)
+        return scheduler
     
     def save_model(self): 
         
