@@ -28,19 +28,13 @@ MODEL_CLASSES = {
 
 class BertClassificationPredictor(object):
 
-    def __init__(self,
-                 model_path,
-                 label_path,
-                 pretrained_model='bert-base-uncased',
-                 multi_label=False,
-                 model_type='bert',
-                 do_lower_case=True):
+    def __init__(self, model_path, label_path, multi_label=False, model_type='bert', do_lower_case=True):
         self.model_path = model_path
         self.label_path = label_path
-        self.pretrained_model = pretrained_model
         self.multi_label = multi_label
         self.model_type = model_type
         self.do_lower_case = do_lower_case
+
         self.learner = self.get_learner()
 
     def get_learner(self):
@@ -48,7 +42,7 @@ class BertClassificationPredictor(object):
         _, _, tokenizer_class = MODEL_CLASSES[self.model_type]
         # instantiate the new tokeniser object using the tokeniser name
         tokenizer = tokenizer_class.from_pretrained(
-            self.pretrained_model, do_lower_case=self.do_lower_case)
+            self.model_path, do_lower_case=self.do_lower_case)
 
         if torch.cuda.is_available():
             device = torch.device('cuda')
