@@ -1,5 +1,7 @@
 torch>=1.3.0
 pytorch-lamb
 tensorboardX
+fastprogress
 sklearn
+spacy
 transformers>=2.2.0

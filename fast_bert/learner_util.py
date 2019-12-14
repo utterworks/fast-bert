@@ -2,6 +2,7 @@ import torch
 from pathlib import Path
 
 from transformers import (
+    AdamW,
     get_constant_schedule,
     get_constant_schedule_with_warmup,
     get_linear_schedule_with_warmup,

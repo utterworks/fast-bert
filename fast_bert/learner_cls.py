@@ -1,6 +1,8 @@
 import os
 from .data_cls import BertDataBunch, InputExample, InputFeatures
 from .learner_util import Learner
+from torch import nn
+from typing import List
 
 from .modeling import (
     BertForMultiLabelSequenceClassification,
@@ -94,8 +96,6 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import roc_curve, auc
 
-from fastai.torch_core import *
-from fastai.callback import *
 
 try:
     from apex.normalization.fused_layer_norm import FusedLayerNorm
@@ -273,12 +273,12 @@ class BertLearner(Learner):
         ]
         return groups
 
-    def split(self, split_on: SplitFuncOrIdxList) -> None:
-        "Split the model at `split_on`."
-        if isinstance(split_on, Callable):
-            split_on = split_on()
-        self.layer_groups = split_model(self.model, split_on)
-        return self
+    # def split(self, split_on: SplitFuncOrIdxList) -> None:
+    #     "Split the model at `split_on`."
+    #     if isinstance(split_on, Callable):
+    #         split_on = split_on()
+    #     self.layer_groups = split_model(self.model, split_on)
+    #     return self
 
     ### Train the model ###
     def fit(
