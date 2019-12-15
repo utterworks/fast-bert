@@ -5,3 +5,4 @@ fastprogress
 sklearn
 spacy
 transformers>=2.2.0
+pandas
