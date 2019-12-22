@@ -59,8 +59,8 @@ class SummarizationDataset(Dataset):
         document_name = document_path.split("/")[-1]
         with open(document_path, encoding="utf-8") as source:
             raw_doc = source.read()
-            doc_lines, summary_lines = process_document(raw_doc)
-        return document_name, doc_lines, summary_lines
+            doc_lines = process_document(raw_doc)
+        return document_name, doc_lines, []
 
 
 class SummarizationInMemoryDataset(Dataset):
@@ -90,12 +90,10 @@ class SummarizationInMemoryDataset(Dataset):
         return len(self.documents)
 
     def __getitem__(self, idx):
-        document_path = self.documents[idx]
-        document_name = document_path.split("/")[-1]
-        with open(document_path, encoding="utf-8") as source:
-            raw_doc = source.read()
-            doc_lines = process_document(raw_doc)
-        return document_name, doc_lines
+        raw_doc = self.documents[idx]
+        doc_lines = process_document(raw_doc)
+
+        return None, doc_lines, []
 
 
 def process_document(raw_doc):
@@ -124,7 +122,7 @@ def process_document(raw_doc):
         except IndexError:
             # if "@highlight" is absent from the file we pop
             # all elements until there is None, raising an exception.
-            return doc_lines, []
+            return doc_lines
 
     return doc_lines
 
@@ -142,9 +140,9 @@ def _add_missing_period(line):
 class BertAbsDataBunch(object):
     def __init__(
         self,
-        data_dir,
         tokenizer,
         device,
+        data_dir=None,
         test_data=None,
         batch_size_per_gpu=16,
         max_seq_length=512,
@@ -180,6 +178,7 @@ class BertAbsDataBunch(object):
                 shutil.rmtree(self.cache_dir, ignore_errors=True)
         else:
             self.no_cache = True
+            self.data_dir = None
 
         self.model_type = model_type
         if logger is None:
@@ -199,7 +198,7 @@ class BertAbsDataBunch(object):
 
         # sampler = SequentialSampler(dataset)
         collate_fn = lambda data: collate(
-            data, self.tokenizer, block_size=512, device=self.device
+            data, self.tokenizer, block_size=self.max_seq_length, device=self.device
         )
 
         self.test_dl = DataLoader(
