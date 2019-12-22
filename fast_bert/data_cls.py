@@ -10,25 +10,47 @@ import shutil
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from transformers import (WEIGHTS_NAME, BertConfig,
-                          BertForSequenceClassification, BertTokenizer,
-                          XLMConfig, XLMForSequenceClassification,
-                          XLMTokenizer, XLNetConfig,
-                          XLNetForSequenceClassification,
-                          XLNetTokenizer,
-                          RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
-                          CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer,
-                          AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer,
-                          DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)
+from transformers import (
+    WEIGHTS_NAME,
+    BertConfig,
+    BertForSequenceClassification,
+    BertTokenizer,
+    XLMConfig,
+    XLMForSequenceClassification,
+    XLMTokenizer,
+    XLNetConfig,
+    XLNetForSequenceClassification,
+    XLNetTokenizer,
+    RobertaConfig,
+    RobertaForSequenceClassification,
+    RobertaTokenizer,
+    CamembertConfig,
+    CamembertForSequenceClassification,
+    CamembertTokenizer,
+    AlbertConfig,
+    AlbertForSequenceClassification,
+    AlbertTokenizer,
+    DistilBertConfig,
+    DistilBertForSequenceClassification,
+    DistilBertTokenizer,
+)
 
 MODEL_CLASSES = {
-    'bert': (BertConfig, BertForSequenceClassification, BertTokenizer),
-    'xlnet': (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
-    'xlm': (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-    'roberta': (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-    'albert': (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-    'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
-    'camembert': (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
+    "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
+    "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
+    "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
+    "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
+    "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
+    "distilbert": (
+        DistilBertConfig,
+        DistilBertForSequenceClassification,
+        DistilBertTokenizer,
+    ),
+    "camembert": (
+        CamembertConfig,
+        CamembertForSequenceClassification,
+        CamembertTokenizer,
+    ),
 }
 
 
@@ -85,13 +107,24 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_b.pop()
 
 
-def convert_examples_to_features(examples, label_list, max_seq_length,
-                                 tokenizer, output_mode='classification',
-                                 cls_token_at_end=False, pad_on_left=False,
-                                 cls_token='[CLS]', sep_token='[SEP]', pad_token=0,
-                                 sequence_a_segment_id=0, sequence_b_segment_id=1,
-                                 cls_token_segment_id=1, pad_token_segment_id=0,
-                                 mask_padding_with_zero=True, logger=None):
+def convert_examples_to_features(
+    examples,
+    label_list,
+    max_seq_length,
+    tokenizer,
+    output_mode="classification",
+    cls_token_at_end=False,
+    pad_on_left=False,
+    cls_token="[CLS]",
+    sep_token="[SEP]",
+    pad_token=0,
+    sequence_a_segment_id=0,
+    sequence_b_segment_id=1,
+    cls_token_segment_id=1,
+    pad_token_segment_id=0,
+    mask_padding_with_zero=True,
+    logger=None,
+):
     """ Loads a data file into a list of `InputBatch`s
         `cls_token_at_end` define the location of the CLS token:
             - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
@@ -105,8 +138,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     for (ex_index, example) in enumerate(examples):
         if ex_index % 10000 == 0:
             if logger:
-                logger.info("Writing example %d of %d" %
-                            (ex_index, len(examples)))
+                logger.info("Writing example %d of %d" % (ex_index, len(examples)))
 
         tokens_a = tokenizer.tokenize(example.text_a)
 
@@ -120,7 +152,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         else:
             # Account for [CLS] and [SEP] with "- 2"
             if len(tokens_a) > max_seq_length - 2:
-                tokens_a = tokens_a[:(max_seq_length - 2)]
+                tokens_a = tokens_a[: (max_seq_length - 2)]
 
         # The convention in BERT is:
         # (a) For sequence pairs:
@@ -164,16 +196,16 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         padding_length = max_seq_length - len(input_ids)
         if pad_on_left:
             input_ids = ([pad_token] * padding_length) + input_ids
-            input_mask = ([0 if mask_padding_with_zero else 1]
-                          * padding_length) + input_mask
-            segment_ids = ([pad_token_segment_id] *
-                           padding_length) + segment_ids
+            input_mask = (
+                [0 if mask_padding_with_zero else 1] * padding_length
+            ) + input_mask
+            segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
         else:
             input_ids = input_ids + ([pad_token] * padding_length)
-            input_mask = input_mask + \
-                ([0 if mask_padding_with_zero else 1] * padding_length)
-            segment_ids = segment_ids + \
-                ([pad_token_segment_id] * padding_length)
+            input_mask = input_mask + (
+                [0 if mask_padding_with_zero else 1] * padding_length
+            )
+            segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
 
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
@@ -184,16 +216,19 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
             for label in example.label:
                 label_id.append(float(label))
         else:
-            if example.label != None:
+            if example.label is not None:
                 label_id = label_map[example.label]
             else:
-                label_id = ''
+                label_id = ""
 
         features.append(
-            InputFeatures(input_ids=input_ids,
-                          input_mask=input_mask,
-                          segment_ids=segment_ids,
-                          label_id=label_id))
+            InputFeatures(
+                input_ids=input_ids,
+                input_mask=input_mask,
+                segment_ids=segment_ids,
+                label_id=label_id,
+            )
+        )
     return features
 
 
@@ -218,57 +253,90 @@ class DataProcessor(object):
 
 
 class TextProcessor(DataProcessor):
-
     def __init__(self, data_dir, label_dir):
         self.data_dir = data_dir
         self.label_dir = label_dir
         self.labels = None
 
-    def get_train_examples(self, filename='train.csv', text_col='text', label_col='label', size=-1):
+    def get_train_examples(
+        self, filename="train.csv", text_col="text", label_col="label", size=-1
+    ):
 
         if size == -1:
             data_df = pd.read_csv(os.path.join(self.data_dir, filename))
 
-            return self._create_examples(data_df, "train", text_col=text_col, label_col=label_col)
+            return self._create_examples(
+                data_df, "train", text_col=text_col, label_col=label_col
+            )
         else:
             data_df = pd.read_csv(os.path.join(self.data_dir, filename))
-#             data_df['comment_text'] = data_df['comment_text'].apply(cleanHtml)
-            return self._create_examples(data_df.sample(size), "train", text_col=text_col, label_col=label_col)
+            #             data_df['comment_text'] = data_df['comment_text'].apply(cleanHtml)
+            return self._create_examples(
+                data_df.sample(size), "train", text_col=text_col, label_col=label_col
+            )
 
-    def get_dev_examples(self, filename='val.csv', text_col='text', label_col='label', size=-1):
+    def get_dev_examples(
+        self, filename="val.csv", text_col="text", label_col="label", size=-1
+    ):
 
         if size == -1:
             data_df = pd.read_csv(os.path.join(self.data_dir, filename))
-            return self._create_examples(data_df, "dev", text_col=text_col, label_col=label_col)
+            return self._create_examples(
+                data_df, "dev", text_col=text_col, label_col=label_col
+            )
         else:
             data_df = pd.read_csv(os.path.join(self.data_dir, filename))
-            return self._create_examples(data_df.sample(size), "dev", text_col=text_col, label_col=label_col)
+            return self._create_examples(
+                data_df.sample(size), "dev", text_col=text_col, label_col=label_col
+            )
 
-    def get_test_examples(self, filename='val.csv', text_col='text', label_col='label', size=-1):
+    def get_test_examples(
+        self, filename="val.csv", text_col="text", label_col="label", size=-1
+    ):
         data_df = pd.read_csv(os.path.join(self.data_dir, filename))
-#         data_df['comment_text'] = data_df['comment_text'].apply(cleanHtml)
+        #         data_df['comment_text'] = data_df['comment_text'].apply(cleanHtml)
         if size == -1:
-            return self._create_examples(data_df, "test",  text_col=text_col, label_col=None)
+            return self._create_examples(
+                data_df, "test", text_col=text_col, label_col=None
+            )
         else:
-            return self._create_examples(data_df.sample(size), "test", text_col=text_col, label_col=None)
+            return self._create_examples(
+                data_df.sample(size), "test", text_col=text_col, label_col=None
+            )
 
-    def get_labels(self, filename='labels.csv'):
+    def get_labels(self, filename="labels.csv"):
         """See base class."""
-        if self.labels == None:
-            self.labels = list(pd.read_csv(os.path.join(
-                self.label_dir, filename), header=None)[0].astype('str').values)
+        if self.labels is None:
+            self.labels = list(
+                pd.read_csv(os.path.join(self.label_dir, filename), header=None)[0]
+                .astype("str")
+                .values
+            )
         return self.labels
 
     def _create_examples(self, df, set_type, text_col, label_col):
         """Creates examples for the training and dev sets."""
-        if label_col == None:
-            return list(df.apply(lambda row: InputExample(guid=row.index, text_a=row[text_col], label=None), axis=1))
+        if label_col is None:
+            return list(
+                df.apply(
+                    lambda row: InputExample(
+                        guid=row.index, text_a=row[text_col], label=None
+                    ),
+                    axis=1,
+                )
+            )
         else:
-            return list(df.apply(lambda row: InputExample(guid=row.index, text_a=row[text_col], label=str(row[label_col])), axis=1))
+            return list(
+                df.apply(
+                    lambda row: InputExample(
+                        guid=row.index, text_a=row[text_col], label=str(row[label_col])
+                    ),
+                    axis=1,
+                )
+            )
 
 
 class MultiLabelTextProcessor(TextProcessor):
-
     def _create_examples(self, df, set_type, text_col, label_col):
         def _get_labels(row, label_col):
             if isinstance(label_col, list):
@@ -281,18 +349,50 @@ class MultiLabelTextProcessor(TextProcessor):
                 return labels
 
         """Creates examples for the training and dev sets."""
-        if label_col == None:
-            return list(df.apply(lambda row: InputExample(guid=row.index, text_a=row[text_col], label=[]), axis=1))
+        if label_col is None:
+            return list(
+                df.apply(
+                    lambda row: InputExample(
+                        guid=row.index, text_a=row[text_col], label=[]
+                    ),
+                    axis=1,
+                )
+            )
         else:
-            return list(df.apply(lambda row: InputExample(guid=row.index, text_a=row[text_col],
-                                                          label=_get_labels(row, label_col)), axis=1))
+            return list(
+                df.apply(
+                    lambda row: InputExample(
+                        guid=row.index,
+                        text_a=row[text_col],
+                        label=_get_labels(row, label_col),
+                    ),
+                    axis=1,
+                )
+            )
 
 
 class BertDataBunch(object):
-
-    def __init__(self, data_dir, label_dir, tokenizer, train_file='train.csv', val_file='val.csv', test_data=None,
-                 label_file='labels.csv', text_col='text', label_col='label', batch_size_per_gpu=16, max_seq_length=512,
-                 multi_gpu=True, multi_label=False, backend="nccl", model_type='bert', logger=None, clear_cache=False, no_cache=False):
+    def __init__(
+        self,
+        data_dir,
+        label_dir,
+        tokenizer,
+        train_file="train.csv",
+        val_file="val.csv",
+        test_data=None,
+        label_file="labels.csv",
+        text_col="text",
+        label_col="label",
+        batch_size_per_gpu=16,
+        max_seq_length=512,
+        multi_gpu=True,
+        multi_label=False,
+        backend="nccl",
+        model_type="bert",
+        logger=None,
+        clear_cache=False,
+        no_cache=False,
+    ):
 
         # just in case someone passes string instead of Path
         if isinstance(data_dir, str):
@@ -305,14 +405,15 @@ class BertDataBunch(object):
             _, _, tokenizer_class = MODEL_CLASSES[model_type]
             # instantiate the new tokeniser object using the tokeniser name
             tokenizer = tokenizer_class.from_pretrained(
-                tokenizer, do_lower_case=('uncased' in tokenizer))
+                tokenizer, do_lower_case=("uncased" in tokenizer)
+            )
 
         self.tokenizer = tokenizer
         self.data_dir = data_dir
         self.train_file = train_file
         self.val_file = val_file
         self.test_data = test_data
-        self.cache_dir = data_dir/'cache'
+        self.cache_dir = data_dir / "cache"
         self.max_seq_length = max_seq_length
         self.batch_size_per_gpu = batch_size_per_gpu
         self.train_dl = None
@@ -322,7 +423,7 @@ class BertDataBunch(object):
         self.n_gpu = 1
         self.no_cache = no_cache
         self.model_type = model_type
-        self.output_mode = 'classification'
+        self.output_mode = "classification"
         if logger is None:
             logger = logging.getLogger()
         self.logger = logger
@@ -342,48 +443,61 @@ class BertDataBunch(object):
         if train_file:
             # Train DataLoader
             train_examples = None
-            cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}_{}'.format(
-                self.model_type,
-                'train',
-                'multi_label' if self.multi_label else 'multi_class',
-                str(self.max_seq_length),
-                os.path.basename(train_file)))
+            cached_features_file = os.path.join(
+                self.cache_dir,
+                "cached_{}_{}_{}_{}_{}".format(
+                    self.model_type,
+                    "train",
+                    "multi_label" if self.multi_label else "multi_class",
+                    str(self.max_seq_length),
+                    os.path.basename(train_file),
+                ),
+            )
 
-            if os.path.exists(cached_features_file) == False or self.no_cache == True:
+            if os.path.exists(cached_features_file) is False or self.no_cache is True:
                 train_examples = processor.get_train_examples(
-                    train_file, text_col=text_col, label_col=label_col)
+                    train_file, text_col=text_col, label_col=label_col
+                )
 
             train_dataset = self.get_dataset_from_examples(
-                train_examples, 'train', no_cache=self.no_cache)
+                train_examples, "train", no_cache=self.no_cache
+            )
 
-            self.train_batch_size = self.batch_size_per_gpu * \
-                max(1, self.n_gpu)
+            self.train_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             train_sampler = RandomSampler(train_dataset)
             self.train_dl = DataLoader(
-                train_dataset, sampler=train_sampler, batch_size=self.train_batch_size)
+                train_dataset, sampler=train_sampler, batch_size=self.train_batch_size
+            )
 
         if val_file:
             # Validation DataLoader
             val_examples = None
-            cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}_{}'.format(
-                self.model_type,
-                'dev',
-                'multi_label' if self.multi_label else 'multi_class',
-                str(self.max_seq_length),
-                os.path.basename(val_file))) 
+            cached_features_file = os.path.join(
+                self.cache_dir,
+                "cached_{}_{}_{}_{}_{}".format(
+                    self.model_type,
+                    "dev",
+                    "multi_label" if self.multi_label else "multi_class",
+                    str(self.max_seq_length),
+                    os.path.basename(val_file),
+                ),
+            )
 
-            if os.path.exists(cached_features_file) == False:
+            if os.path.exists(cached_features_file) is False:
                 val_examples = processor.get_dev_examples(
-                    val_file, text_col=text_col, label_col=label_col)
+                    val_file, text_col=text_col, label_col=label_col
+                )
 
-            val_dataset = self.get_dataset_from_examples(val_examples, 'dev', no_cache=self.no_cache)
+            val_dataset = self.get_dataset_from_examples(
+                val_examples, "dev", no_cache=self.no_cache
+            )
 
             # no grads necessary, hence double val batch size
-            self.val_batch_size = self.batch_size_per_gpu * \
-                2 * max(1, self.n_gpu)
+            self.val_batch_size = self.batch_size_per_gpu * 2 * max(1, self.n_gpu)
             val_sampler = SequentialSampler(val_dataset)
             self.val_dl = DataLoader(
-                val_dataset, sampler=val_sampler, batch_size=self.val_batch_size)
+                val_dataset, sampler=val_sampler, batch_size=self.val_batch_size
+            )
 
         if test_data:
             # Test set loader for predictions
@@ -392,18 +506,17 @@ class BertDataBunch(object):
 
             for index, text in enumerate(test_data):
                 test_examples.append(InputExample(index, text))
-                input_data.append({
-                    'id': index,
-                    'text': text
-                })
+                input_data.append({"id": index, "text": text})
 
             test_dataset = self.get_dataset_from_examples(
-                test_examples, 'test', is_test=True, no_cache=self.no_cache)
+                test_examples, "test", is_test=True, no_cache=self.no_cache
+            )
 
             self.test_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             test_sampler = SequentialSampler(test_dataset)
             self.test_dl = DataLoader(
-                test_dataset, sampler=test_sampler, batch_size=self.test_batch_size)
+                test_dataset, sampler=test_sampler, batch_size=self.test_batch_size
+            )
 
     def get_dl_from_texts(self, texts):
 
@@ -412,42 +525,51 @@ class BertDataBunch(object):
 
         for index, text in enumerate(texts):
             test_examples.append(InputExample(index, text, label=None))
-            input_data.append({
-                'id': index,
-                'text': text
-            })
+            input_data.append({"id": index, "text": text})
 
         test_dataset = self.get_dataset_from_examples(
-            test_examples, 'test', is_test=True, no_cache=True)
+            test_examples, "test", is_test=True, no_cache=True
+        )
 
         test_sampler = SequentialSampler(test_dataset)
-        return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu)
+        return DataLoader(
+            test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu
+        )
 
     def save(self, filename="databunch.pkl"):
-        tmp_path = self.data_dir/'tmp'
+        tmp_path = self.data_dir / "tmp"
         tmp_path.mkdir(exist_ok=True)
-        with open(str(tmp_path/filename), "wb") as f:
+        with open(str(tmp_path / filename), "wb") as f:
             pickle.dump(self, f)
 
-    def get_dataset_from_examples(self, examples, set_type='train', is_test=False, no_cache=False):
+    def get_dataset_from_examples(
+        self, examples, set_type="train", is_test=False, no_cache=False
+    ):
 
-        if set_type == 'train':
+        if set_type == "train":
             file_name = self.train_file
-        elif set_type == 'dev':
+        elif set_type == "dev":
             file_name = self.val_file
-        elif set_type == 'test':
-            file_name = 'test' # test is not supposed to be a file - just a list of texts
-        
-        cached_features_file = os.path.join(self.cache_dir, 'cached_{}_{}_{}_{}_{}'.format(
-            self.model_type,
-            set_type,
-            'multi_label' if self.multi_label else 'multi_class',
-            str(self.max_seq_length),
-            os.path.basename(file_name)))
+        elif set_type == "test":
+            file_name = (
+                "test"
+            )  # test is not supposed to be a file - just a list of texts
 
-        if os.path.exists(cached_features_file) and no_cache == False:
+        cached_features_file = os.path.join(
+            self.cache_dir,
+            "cached_{}_{}_{}_{}_{}".format(
+                self.model_type,
+                set_type,
+                "multi_label" if self.multi_label else "multi_class",
+                str(self.max_seq_length),
+                os.path.basename(file_name),
+            ),
+        )
+
+        if os.path.exists(cached_features_file) and no_cache is False:
             self.logger.info(
-                "Loading features from cached file %s", cached_features_file)
+                "Loading features from cached file %s", cached_features_file
+            )
             features = torch.load(cached_features_file)
         else:
             # Create tokenized and numericalized features
@@ -458,43 +580,48 @@ class BertDataBunch(object):
                 tokenizer=self.tokenizer,
                 output_mode=self.output_mode,
                 # xlnet has a cls token at the end
-                cls_token_at_end=bool(self.model_type in ['xlnet']),
+                cls_token_at_end=bool(self.model_type in ["xlnet"]),
                 cls_token=self.tokenizer.cls_token,
                 sep_token=self.tokenizer.sep_token,
-                cls_token_segment_id=2 if self.model_type in ['xlnet'] else 0,
+                cls_token_segment_id=2 if self.model_type in ["xlnet"] else 0,
                 # pad on the left for xlnet
-                pad_on_left=bool(self.model_type in ['xlnet']),
-                pad_token_segment_id=4 if self.model_type in ['xlnet'] else 0,
-                logger=self.logger)
+                pad_on_left=bool(self.model_type in ["xlnet"]),
+                pad_token_segment_id=4 if self.model_type in ["xlnet"] else 0,
+                logger=self.logger,
+            )
 
             # Create folder if it doesn't exist
-            if no_cache == False:
+            if no_cache is False:
                 self.cache_dir.mkdir(exist_ok=True)
                 self.logger.info(
-                    "Saving features into cached file %s", cached_features_file)
+                    "Saving features into cached file %s", cached_features_file
+                )
                 torch.save(features, cached_features_file)
 
         # Convert to Tensors and build dataset
-        all_input_ids = torch.tensor(
-            [f.input_ids for f in features], dtype=torch.long)
+        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
         all_input_mask = torch.tensor(
-            [f.input_mask for f in features], dtype=torch.long)
+            [f.input_mask for f in features], dtype=torch.long
+        )
         all_segment_ids = torch.tensor(
-            [f.segment_ids for f in features], dtype=torch.long)
+            [f.segment_ids for f in features], dtype=torch.long
+        )
 
-        if is_test == False:  # labels not available for test set
+        if is_test is False:  # labels not available for test set
             if self.multi_label:
                 all_label_ids = torch.tensor(
-                    [f.label_id for f in features], dtype=torch.float)
+                    [f.label_id for f in features], dtype=torch.float
+                )
             else:
                 all_label_ids = torch.tensor(
-                    [f.label_id for f in features], dtype=torch.long)
+                    [f.label_id for f in features], dtype=torch.long
+                )
 
             dataset = TensorDataset(
-                all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+                all_input_ids, all_input_mask, all_segment_ids, all_label_ids
+            )
         else:
             all_label_ids = []
-            dataset = TensorDataset(
-                all_input_ids, all_input_mask, all_segment_ids)
+            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids)
 
         return dataset
