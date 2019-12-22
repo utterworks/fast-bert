@@ -193,15 +193,35 @@ class BertAbsDataBunch(object):
             dataset = SummarizationDataset(self.data_dir)
         elif test_data:
             dataset = SummarizationInMemoryDataset(test_data)
+        else:
+            dataset = None
+
+        if dataset:
+            sampler = SequentialSampler(dataset)
+
+            collate_fn = lambda data: collate(
+                data, self.tokenizer, block_size=self.max_seq_length, device=self.device
+            )
+
+            self.test_dl = DataLoader(
+                dataset,
+                sampler=sampler,
+                batch_size=self.batch_size_per_gpu,
+                collate_fn=collate_fn,
+            )
+        else:
+            self.test_dl = None
+
+    def get_dl_from_texts(self, texts):
+
+        dataset = SummarizationInMemoryDataset(texts)
 
         sampler = SequentialSampler(dataset)
 
-        # sampler = SequentialSampler(dataset)
         collate_fn = lambda data: collate(
             data, self.tokenizer, block_size=self.max_seq_length, device=self.device
         )
-
-        self.test_dl = DataLoader(
+        return DataLoader(
             dataset,
             sampler=sampler,
             batch_size=self.batch_size_per_gpu,

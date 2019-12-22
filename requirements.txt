@@ -5,3 +5,4 @@ sklearn
 spacy
 transformers>=2.3.0
 pandas
+python-box
