@@ -13,6 +13,13 @@ from .modeling import (
     AlbertForMultiLabelSequenceClassification,
 )
 
+from .bert_layers import BertLayerNorm
+from fastprogress.fastprogress import master_bar, progress_bar
+import torch
+import pandas as pd
+import numpy as np
+from sklearn.metrics import roc_curve, auc
+
 from pathlib import Path
 
 from torch.optim.lr_scheduler import _LRScheduler, Optimizer
@@ -89,17 +96,10 @@ MODEL_CLASSES = {
     ),
 }
 
-from .bert_layers import BertLayerNorm
-from fastprogress.fastprogress import master_bar, progress_bar
-import torch
-import pandas as pd
-import numpy as np
-from sklearn.metrics import roc_curve, auc
-
 
 try:
     from apex.normalization.fused_layer_norm import FusedLayerNorm
-except:
+except Exception:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
 
 
@@ -140,7 +140,7 @@ class BertLearner(Learner):
         else:
             model_state_dict = None
 
-        if multi_label == True:
+        if multi_label is True:
             print(str(pretrained_path))
             print(type(str(pretrained_path)))
             model = model_class[1].from_pretrained(
@@ -214,64 +214,63 @@ class BertLearner(Learner):
         # Classification specific attributes
         self.multi_label = multi_label
         self.metrics = metrics
-        self.bn_types = (BertLayerNorm, FusedLayerNorm)
 
-    def freeze_to(self, n: int) -> None:
-        "Freeze layers up to layer group `n`."
-        for g in self.layer_groups[:n]:
-            for l in g:
-                if not isinstance(l, self.bn_types):
-                    requires_grad(l, False)
-        for g in self.layer_groups[n:]:
-            requires_grad(g, True)
-        self.optimizer = None
+    # def freeze_to(self, n: int) -> None:
+    #     "Freeze layers up to layer group `n`."
+    #     for g in self.layer_groups[:n]:
+    #         for l in g:
+    #             if not isinstance(l, self.bn_types):
+    #                 requires_grad(l, False)
+    #     for g in self.layer_groups[n:]:
+    #         requires_grad(g, True)
+    #     self.optimizer = None
 
-    def freeze_module(self, module):
-        for param in module.parameters():
-            param.requires_grad = False
+    # def freeze_module(self, module):
+    #     for param in module.parameters():
+    #         param.requires_grad = False
 
-    def unfreeze_module(self, module):
-        for param in module.parameters():
-            param.requires_grad = True
+    # def unfreeze_module(self, module):
+    #     for param in module.parameters():
+    #         param.requires_grad = True
 
-    def freeze(self) -> None:
-        "Freeze up to last layer group."
-        assert len(self.layer_groups) > 1
-        self.freeze_to(-1)
-        self.optimizer = None
+    # def freeze(self) -> None:
+    #     "Freeze up to last layer group."
+    #     assert len(self.layer_groups) > 1
+    #     self.freeze_to(-1)
+    #     self.optimizer = None
 
-    def unfreeze(self):
-        "Unfreeze entire model."
-        self.freeze_to(0)
-        self.optimizer = None
+    # def unfreeze(self):
+    #     "Unfreeze entire model."
+    #     self.freeze_to(0)
+    #     self.optimizer = None
 
-    def bert_clas_split(self) -> List[nn.Module]:
-        "Split the BERT `model` in groups for differential learning rates."
-        if self.model.module:
-            model = self.model.module
-        else:
-            model = self.model
+    # def bert_clas_split(self) -> List[nn.Module]:
+    #     "Split the BERT `model` in groups for differential learning rates."
+    #     if self.model.module:
+    #         model = self.model.module
+    #     else:
+    #         model = self.model
 
-        bert = model.bert
+    #     bert = model.bert
 
-        embedder = bert.embeddings
-        pooler = bert.pooler
+    #     embedder = bert.embeddings
+    #     pooler = bert.pooler
 
-        encoder = bert.encoder
+    #     encoder = bert.encoder
 
-        classifier = [model.dropout, model.classifier]
+    #     classifier = [model.dropout, model.classifier]
 
-        n = len(encoder.layer) // 3
+    #     n = len(encoder.layer) // 3
 
-        groups = [
-            [embedder],
-            list(encoder.layer[:n]),
-            list(encoder.layer[n : 2 * n]),
-            list(encoder.layer[2 * n :]),
-            [pooler],
-            classifier,
-        ]
-        return groups
+    #     groups = [
+    #         [embedder],
+    #         list(encoder.layer[:n]),
+    #         list(encoder.layer[n : 2 * n]),
+    #         list(encoder.layer[2 * n :]),
+    #         [pooler],
+    #         classifier,
+    #     ]
+    #     return groups
 
     # def split(self, split_on: SplitFuncOrIdxList) -> None:
     #     "Split the model at `split_on`."
@@ -292,7 +291,6 @@ class BertLearner(Learner):
 
         tensorboard_dir = self.output_dir / "tensorboard"
         tensorboard_dir.mkdir(exist_ok=True)
-        print(tensorboard_dir)
 
         # Train the model
         tb_writer = SummaryWriter(tensorboard_dir)
@@ -329,7 +327,7 @@ class BertLearner(Learner):
         )
 
         # Parallelize the model architecture
-        if self.multi_gpu == True:
+        if self.multi_gpu is True:
             self.model = torch.nn.DataParallel(self.model)
 
         # Start Training
@@ -467,7 +465,7 @@ class BertLearner(Learner):
         all_logits = None
         all_labels = None
 
-        eval_loss, eval_accuracy = 0, 0
+        eval_loss = 0
         nb_eval_steps, nb_eval_examples = 0, 0
 
         preds = None
