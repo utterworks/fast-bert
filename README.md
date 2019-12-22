@@ -4,6 +4,8 @@
 [![PyPI version](https://badge.fury.io/py/fast-bert.svg)](https://badge.fury.io/py/fast-bert)
 ![Python 3.6, 3.7](https://img.shields.io/badge/python-3.6%20%7C%203.7-green.svg)
 
+**New Includes Summarisation using BERT Seq2Seq**
+
 **New model architectures: ALBERT, CamemBERT, DistilRoberta**
 
 **DistilBERT (from HuggingFace), Smaller, faster, cheaper, lighter**
