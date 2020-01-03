@@ -11,7 +11,7 @@ CLASSIFICATION_THRESHOLD: float = 0.5  # Best keep it in [0.0, 1.0] range
 
 
 def accuracy(y_pred: Tensor, y_true: Tensor):
-
+    y_pred = y_pred.cpu()
     outputs = np.argmax(y_pred, axis=1)
     return np.mean(outputs.numpy() == y_true.detach().cpu().numpy())
 
