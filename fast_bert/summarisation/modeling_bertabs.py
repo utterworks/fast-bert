@@ -29,6 +29,8 @@ from torch.nn.init import xavier_uniform_
 
 from transformers import BertModel, BertConfig, PreTrainedModel
 
+from tokenizers import BertWordPieceTokenizer
+
 from .configuration_bertabs import BertAbsConfig
 
 
@@ -974,7 +976,10 @@ class Translator(object):
                     for i in range(alive_seq.size(0)):
                         fail = False
                         words = [int(w) for w in alive_seq[i]]
-                        words = [self.vocab.ids_to_tokens[w] for w in words]
+                        if type(self.vocab) == BertWordPieceTokenizer:
+                            words = [self.vocab.id_to_token(w) for w in words]
+                        else:
+                            words = [self.vocab.ids_to_tokens[w] for w in words]
                         words = " ".join(words).replace(" ##", "").split()
                         if len(words) <= 3:
                             continue
@@ -1051,7 +1056,7 @@ class Translator(object):
             )
 
         return results
-
+    
     def from_batch(self, translation_batch):
         batch = translation_batch["batch"]
         assert len(translation_batch["gold_score"]) == len(translation_batch["predictions"])
@@ -1066,14 +1071,26 @@ class Translator(object):
         )
 
         translations = []
-        for b in range(batch_size):
-            pred_sents = self.vocab.convert_ids_to_tokens([int(n) for n in preds[b][0]])
-            pred_sents = " ".join(pred_sents).replace(" ##", "")
-            gold_sent = " ".join(tgt_str[b].split())
-            raw_src = [self.vocab.ids_to_tokens[int(t)] for t in src[b]][:500]
-            raw_src = " ".join(raw_src)
-            translation = (pred_sents, gold_sent, raw_src)
-            translations.append(translation)
+        if type(self.vocab) == BertWordPieceTokenizer:
+            for b in range(batch_size):
+                pred_sents = self.vocab.decode([int(n) for n in preds[b][0]])
+                # pred_sents = " ".join(pred_sents).replace(" ##", "")
+                pred_sents = pred_sents.replace(" ##", "")
+                gold_sent = " ".join(tgt_str[b].split())
+                
+                raw_src = [self.vocab.id_to_token(int(t)) for t in src[b]][:500]
+                raw_src = " ".join(raw_src)
+                translation = (pred_sents, gold_sent, raw_src)
+                translations.append(translation)
+        else:
+            for b in range(batch_size):
+                pred_sents = self.vocab.convert_ids_to_tokens([int(n) for n in preds[b][0]])
+                pred_sents = " ".join(pred_sents).replace(" ##", "")
+                gold_sent = " ".join(tgt_str[b].split())
+                raw_src = [self.vocab.ids_to_tokens[int(t)] for t in src[b]][:500]
+                raw_src = " ".join(raw_src)
+                translation = (pred_sents, gold_sent, raw_src)
+                translations.append(translation)
 
         return translations
 

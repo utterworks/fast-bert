@@ -5,6 +5,7 @@ from torch import nn
 from typing import List
 import torch
 from box import Box
+from tokenizers import BertWordPieceTokenizer
 
 from .summarisation import BertAbs, build_predictor
 from .summarisation import BertAbsConfig
@@ -119,11 +120,18 @@ class BertAbsLearner(Learner):
         self.metrics = metrics
 
         # Summarisation specific features
-        symbols = {
-            "BOS": self.data.tokenizer.vocab["[unused0]"],
-            "EOS": self.data.tokenizer.vocab["[unused1]"],
-            "PAD": self.data.tokenizer.vocab["[PAD]"],
-        }
+        if type(self.data.tokenizer) == BertWordPieceTokenizer:
+            symbols = {
+                "BOS": self.data.tokenizer.token_to_id("[unused0]"),
+                "EOS": self.data.tokenizer.token_to_id("[unused1]"),
+                "PAD": self.data.tokenizer.token_to_id("[PAD]"),
+            }
+        else:
+            symbols = {
+                "BOS": self.data.tokenizer.vocab["[unused0]"],
+                "EOS": self.data.tokenizer.vocab["[unused1]"],
+                "PAD": self.data.tokenizer.vocab["[PAD]"],
+            }
 
         self.predictor_args = Box(
             {
