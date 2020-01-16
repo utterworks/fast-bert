@@ -76,7 +76,7 @@ MODEL_CLASSES = {
         (AlbertForSequenceClassification, AlbertForMultiLabelSequenceClassification),
         AlbertTokenizer,
     ),
-    "camembert": (
+    "camembert-base": (
         CamembertConfig,
         (
             CamembertForSequenceClassification,

@@ -41,16 +41,8 @@ MODEL_CLASSES = {
     "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
     "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
     "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-    "distilbert": (
-        DistilBertConfig,
-        DistilBertForSequenceClassification,
-        DistilBertTokenizer,
-    ),
-    "camembert": (
-        CamembertConfig,
-        CamembertForSequenceClassification,
-        CamembertTokenizer,
-    ),
+    "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
+    "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
 }
 
 
