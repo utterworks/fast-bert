@@ -312,7 +312,7 @@ class TextProcessor(DataProcessor):
             return list(
                 df.apply(
                     lambda row: InputExample(
-                        guid=row.index, text_a=row[text_col], label=None
+                        guid=row.index, text_a=str(row[text_col]), label=None
                     ),
                     axis=1,
                 )
@@ -321,7 +321,7 @@ class TextProcessor(DataProcessor):
             return list(
                 df.apply(
                     lambda row: InputExample(
-                        guid=row.index, text_a=row[text_col], label=str(row[label_col])
+                        guid=row.index, text_a=str(row[text_col]), label=str(row[label_col])
                     ),
                     axis=1,
                 )
