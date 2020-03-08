@@ -41,8 +41,16 @@ MODEL_CLASSES = {
     "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
     "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
     "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
-    "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
+    "distilbert": (
+        DistilBertConfig,
+        DistilBertForSequenceClassification,
+        DistilBertTokenizer,
+    ),
+    "camembert-base": (
+        CamembertConfig,
+        CamembertForSequenceClassification,
+        CamembertTokenizer,
+    ),
 }
 
 
@@ -132,11 +140,11 @@ def convert_examples_to_features(
             if logger:
                 logger.info("Writing example %d of %d" % (ex_index, len(examples)))
 
-        tokens_a = tokenizer.tokenize(example.text_a)
+        tokens_a = tokenizer.tokenize(str(example.text_a))
 
         tokens_b = None
         if example.text_b:
-            tokens_b = tokenizer.tokenize(example.text_b)
+            tokens_b = tokenizer.tokenize(str(example.text_b))
             # Modifies `tokens_a` and `tokens_b` in place so that the total
             # length is less than the specified length.
             # Account for [CLS], [SEP], [SEP] with "- 3"
@@ -321,7 +329,9 @@ class TextProcessor(DataProcessor):
             return list(
                 df.apply(
                     lambda row: InputExample(
-                        guid=row.index, text_a=str(row[text_col]), label=str(row[label_col])
+                        guid=row.index,
+                        text_a=str(row[text_col]),
+                        label=str(row[label_col]),
                     ),
                     axis=1,
                 )
