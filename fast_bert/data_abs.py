@@ -10,7 +10,7 @@ import pickle
 import shutil
 from collections import deque, namedtuple
 from torch.utils.data import Dataset, DataLoader, SequentialSampler
-
+from tokenizers import BertWordPieceTokenizer
 from transformers import BertTokenizer
 
 Batch = namedtuple(
@@ -163,8 +163,13 @@ class BertAbsDataBunch(object):
             tokenizer = BertTokenizer.from_pretrained(
                 "bert-base-uncased", do_lower_case=True
             )
-
         self.tokenizer = tokenizer
+
+        if type(self.tokenizer) == BertWordPieceTokenizer:
+
+            self.tokenizer.cls_token_id = self.tokenizer.token_to_id("[CLS]")
+            self.tokenizer.pad_token_id = self.tokenizer.token_to_id("[PAD]")
+
         self.max_seq_length = max_seq_length
         self.batch_size_per_gpu = batch_size_per_gpu
         self.device = device
@@ -239,10 +244,16 @@ def collate(data, tokenizer, block_size, device):
     names = [name for name, _, _ in data]
     summaries = [" ".join(summary_list) for _, _, summary_list in data]
 
-    encoded_text = [
-        encode_for_summarization(story, summary, tokenizer)
-        for _, story, summary in data
-    ]
+    if type(tokenizer) == BertWordPieceTokenizer:
+        encoded_text = [
+            encode_for_summarization_new_tokenizer(story, summary, tokenizer)
+            for _, story, summary in data
+        ]
+    else:
+        encoded_text = [
+            encode_for_summarization(story, summary, tokenizer)
+            for _, story, summary in data
+        ]
     encoded_stories = torch.tensor(
         [
             fit_to_block_size(story, block_size, tokenizer.pad_token_id)
@@ -276,6 +287,23 @@ def encode_for_summarization(story_lines, summary_lines, tokenizer):
         token for sentence in story_lines_token_ids for token in sentence
     ]
     summary_lines_token_ids = [tokenizer.encode(line) for line in summary_lines]
+    summary_token_ids = [
+        token for sentence in summary_lines_token_ids for token in sentence
+    ]
+
+    return story_token_ids, summary_token_ids
+
+
+def encode_for_summarization_new_tokenizer(story_lines, summary_lines, tokenizer):
+    """ Encode the story and summary lines, and join them
+    as specified in [1] by using `[SEP] [CLS]` tokens to separate
+    sentences.
+    """
+    story_lines_token_ids = [tokenizer.encode(line).ids for line in story_lines]
+    story_token_ids = [
+        token for sentence in story_lines_token_ids for token in sentence
+    ]
+    summary_lines_token_ids = [tokenizer.encode(line).ids for line in summary_lines]
     summary_token_ids = [
         token for sentence in summary_lines_token_ids for token in sentence
     ]

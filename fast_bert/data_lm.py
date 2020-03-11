@@ -40,6 +40,9 @@ from transformers import (
     DistilBertConfig,
     DistilBertForSequenceClassification,
     DistilBertTokenizer,
+    CamembertConfig,
+    CamembertForSequenceClassification,
+    CamembertTokenizer
 )
 
 MODEL_CLASSES = {
@@ -47,11 +50,8 @@ MODEL_CLASSES = {
     "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
     "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
     "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-    "distilbert": (
-        DistilBertConfig,
-        DistilBertForSequenceClassification,
-        DistilBertTokenizer,
-    ),
+    "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
+    "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
 }
 
 # Create text corpus suitable for language model training
@@ -59,7 +59,7 @@ MODEL_CLASSES = {
 
 def create_corpus(text_list, target_path, logger=None):
 
-    nlp = spacy.load("en_core_web_sm", disable=["tagger", "ner", "textcat"])
+#     nlp = spacy.load("en_core_web_sm", disable=["tagger", "ner", "textcat"])
 
     with open(target_path, "w") as f:
         #  Split sentences for each document
