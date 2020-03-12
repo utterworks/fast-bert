@@ -290,8 +290,8 @@ class BertLearner(Learner):
         schedule_type="warmup_cosine",
         optimizer_type="lamb",
     ):
-        results = None
-        results_training = None
+        results_val = []
+        results_training = []
         tensorboard_dir = self.output_dir / "tensorboard"
         tensorboard_dir.mkdir(exist_ok=True)
 
@@ -438,19 +438,21 @@ class BertLearner(Learner):
 
             # Evaluate the model against training set after every epoch
             if validate_training:
-                results_training = self.validate()
-                for key, value in results_training.items():
+                results_t = self.validate(dl='train')
+                for key, value in results_t.items():
                     self.logger.info(
                         "eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value)
                     )
+                results_training.append(results_t)
 
             # Evaluate the model against validation set after every epoch
             if validate:
-                results = self.validate()
-                for key, value in results.items():
+                results_v = self.validate()
+                for key, value in results_v.items():
                     self.logger.info(
                         "eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value)
                     )
+                results_val.append(results_v)
 
             # Log metrics
             self.logger.info(
@@ -466,7 +468,7 @@ class BertLearner(Learner):
         tb_writer.close()
 
         if return_results:
-            return global_step, tr_loss / global_step, results, results_training
+            return global_step, tr_loss / global_step, results_training, results_val
         else:
             return global_step, tr_loss / global_step
 
