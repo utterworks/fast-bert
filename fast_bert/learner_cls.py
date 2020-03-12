@@ -285,10 +285,13 @@ class BertLearner(Learner):
         epochs,
         lr,
         validate=True,
+        validate_training=False,
+        return_results=False,
         schedule_type="warmup_cosine",
         optimizer_type="lamb",
     ):
-
+        results = None
+        results_training = None
         tensorboard_dir = self.output_dir / "tensorboard"
         tensorboard_dir.mkdir(exist_ok=True)
 
@@ -433,7 +436,15 @@ class BertLearner(Learner):
 
                         logging_loss = tr_loss
 
-            # Evaluate the model after every epoch
+            # Evaluate the model against training set after every epoch
+            if validate_training:
+                results_training = self.validate()
+                for key, value in results_training.items():
+                    self.logger.info(
+                        "eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value)
+                    )
+
+            # Evaluate the model against validation set after every epoch
             if validate:
                 results = self.validate()
                 for key, value in results.items():
@@ -453,14 +464,25 @@ class BertLearner(Learner):
             self.logger.info("\n")
 
         tb_writer.close()
-        return global_step, tr_loss / global_step
+
+        if return_results:
+            return global_step, tr_loss / global_step, results, results_training
+        else:
+            return global_step, tr_loss / global_step
 
     ### Evaluate the model
-    def validate(self):
+    def validate(self, dl='val'):
         self.logger.info("Running evaluation")
 
-        self.logger.info("  Num examples = %d", len(self.data.val_dl.dataset))
-        self.logger.info("  Batch size = %d", self.data.val_batch_size)
+        if dl == 'train':
+            dataloader = self.data.train_dl
+            batch_size = self.data.train_batch_size
+        else:
+            dataloader = self.data.val_dl
+            batch_size = self.data.val_batch_size
+
+        self.logger.info("  Num examples = %d", len(dataloader.dataset))
+        self.logger.info("  Batch size = %d", batch_size)
 
         all_logits = None
         all_labels = None
@@ -473,7 +495,7 @@ class BertLearner(Learner):
 
         validation_scores = {metric["name"]: 0.0 for metric in self.metrics}
 
-        for step, batch in enumerate(progress_bar(self.data.val_dl)):
+        for step, batch in enumerate(progress_bar(dataloader)):
             self.model.eval()
             batch = tuple(t.to(self.device) for t in batch)
 
