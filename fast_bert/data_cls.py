@@ -383,6 +383,7 @@ class BertDataBunch(object):
         val_file="val.csv",
         test_data=None,
         label_file="labels.csv",
+        labels=None,
         text_col="text",
         label_col="label",
         batch_size_per_gpu=16,
@@ -440,7 +441,10 @@ class BertDataBunch(object):
         else:
             processor = TextProcessor(data_dir, label_dir)
 
-        self.labels = processor.get_labels(label_file)
+        if labels is None:
+            self.labels = processor.get_labels(label_file)
+        else:
+            self.labels = labels
 
         if train_file:
             # Train DataLoader
