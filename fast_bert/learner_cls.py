@@ -285,10 +285,11 @@ class BertLearner(Learner):
         epochs,
         lr,
         validate=True,
+        return_results=False,
         schedule_type="warmup_cosine",
         optimizer_type="lamb",
     ):
-
+        results_val = []
         tensorboard_dir = self.output_dir / "tensorboard"
         tensorboard_dir.mkdir(exist_ok=True)
 
@@ -433,13 +434,14 @@ class BertLearner(Learner):
 
                         logging_loss = tr_loss
 
-            # Evaluate the model after every epoch
+            # Evaluate the model against validation set after every epoch
             if validate:
                 results = self.validate()
                 for key, value in results.items():
                     self.logger.info(
                         "eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value)
                     )
+                results_val.append(results)
 
             # Log metrics
             self.logger.info(
@@ -453,12 +455,15 @@ class BertLearner(Learner):
             self.logger.info("\n")
 
         tb_writer.close()
-        return global_step, tr_loss / global_step
+
+        if return_results:
+            return global_step, tr_loss / global_step, results_val
+        else:
+            return global_step, tr_loss / global_step
 
     ### Evaluate the model
     def validate(self):
         self.logger.info("Running evaluation")
-
         self.logger.info("  Num examples = %d", len(self.data.val_dl.dataset))
         self.logger.info("  Batch size = %d", self.data.val_batch_size)
 

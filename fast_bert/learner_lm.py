@@ -251,9 +251,11 @@ class BertLMLearner(Learner):
 
         return results
 
-    def save_model(self):
+    def save_model(self, path=None):
 
-        path = self.output_dir/'model_out'
+        if not path:
+            path = self.output_dir/'model_out'
+
         path.mkdir(exist_ok=True)
 
         torch.cuda.empty_cache()
