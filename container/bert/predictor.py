@@ -29,7 +29,7 @@ PRETRAINED_PATH = Path(os.path.join(prefix, "code"))
 BERT_PRETRAINED_PATH = (
     PRETRAINED_PATH / "pretrained-weights" / "uncased_L-12_H-768_A-12/"
 )
-MODEL_PATH = PATH / "pytorch_model.bin"
+MODEL_PATH = PATH + "pytorch_model.bin"
 
 # request_text = None
 
@@ -43,11 +43,11 @@ class ScoringService(object):
         # print(cls.searching_all_files(PATH))
         # Get model predictor
         if cls.model == None:
-            with open(PATH / "model_config.json") as f:
+            with open(PATH + "model_config.json") as f:
                 model_config = json.load(f)
 
             predictor = BertClassificationPredictor(
-                PATH / "model_out",
+                PATH + "model_out",
                 label_path=PATH,
                 multi_label=bool(model_config["multi_label"]),
                 model_type=model_config["model_type"],
