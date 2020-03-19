@@ -21,7 +21,8 @@ warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
 prefix = "/opt/ml/"
 
-PATH = Path(os.path.join(prefix, "model"))
+# PATH = Path(os.path.join(prefix, "model"))
+PATH = prefix + "model"
 
 PRETRAINED_PATH = Path(os.path.join(prefix, "code"))
 
