@@ -235,7 +235,7 @@ class XLNetForMultiLabelSequenceClassification(XLNetForSequenceClassification):
     Examples::
         >>> config = XLNetConfig.from_pretrained('xlnet-large-cased')
         >>> tokenizer = XLNetTokenizer.from_pretrained('xlnet-large-cased')
-        >>> 
+        >>>
         >>> model = XLNetForSequenceClassification(config)
         >>> input_ids = torch.tensor(tokenizer.encode("Hello, my dog is cute")).unsqueeze(0)  # Batch size 1
         >>> labels = torch.tensor([1]).unsqueeze(0)  # Batch size 1
@@ -294,16 +294,16 @@ class AlbertForMultiLabelSequenceClassification(AlbertForSequenceClassification)
         position_ids=None,
         head_mask=None,
     ):
-        outputs = self.roberta(
+        outputs = self.albert(
             input_ids,
             position_ids=position_ids,
             token_type_ids=token_type_ids,
             attention_mask=attention_mask,
             head_mask=head_mask,
         )
-        sequence_output = outputs[0]
-        logits = self.classifier(sequence_output)
-
+        pooled_output = outputs[1]
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
         outputs = (logits,) + outputs[2:]
 
         if labels is not None:
