@@ -51,6 +51,8 @@ from transformers import (
     DistilBertTokenizer,
 )
 
+from transformers import AutoModelForSequenceClassification, AutoConfig
+
 
 MODEL_CLASSES = {
     "bert": (
@@ -129,25 +131,26 @@ class BertLearner(Learner):
 
         model_type = dataBunch.model_type
 
-        config_class, model_class, _ = MODEL_CLASSES[model_type]
-
-        config = config_class.from_pretrained(
-            str(pretrained_path), num_labels=len(dataBunch.labels)
-        )
-
         if finetuned_wgts_path:
             model_state_dict = torch.load(finetuned_wgts_path)
         else:
             model_state_dict = None
 
         if multi_label is True:
-            print(str(pretrained_path))
-            print(type(str(pretrained_path)))
+            config_class, model_class, _ = MODEL_CLASSES[model_type]
+
+            config = config_class.from_pretrained(
+                str(pretrained_path), num_labels=len(dataBunch.labels)
+            )
+
             model = model_class[1].from_pretrained(
                 str(pretrained_path), config=config, state_dict=model_state_dict
             )
         else:
-            model = model_class[0].from_pretrained(
+            config = AutoConfig.from_pretrained(
+                str(pretrained_path), num_labels=len(dataBunch.labels)
+            )
+            model = AutoModelForSequenceClassification.from_pretrained(
                 str(pretrained_path), config=config, state_dict=model_state_dict
             )
 
