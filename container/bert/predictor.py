@@ -24,11 +24,6 @@ prefix = "/opt/ml/"
 # PATH = Path(os.path.join(prefix, "model"))
 PATH = os.path.join(prefix, "model")
 
-PRETRAINED_PATH = Path(os.path.join(prefix, "code"))
-
-BERT_PRETRAINED_PATH = (
-    PRETRAINED_PATH / "pretrained-weights" / "uncased_L-12_H-768_A-12/"
-)
 MODEL_PATH = os.path.join(PATH, "pytorch_model.bin")
 
 # request_text = None
@@ -42,7 +37,7 @@ class ScoringService(object):
 
         # print(cls.searching_all_files(PATH))
         # Get model predictor
-        if cls.model == None:
+        if cls.model is None:
             with open(os.path.join(PATH, "model_config.json")) as f:
                 model_config = json.load(f)
 
@@ -128,7 +123,7 @@ def transformation():
         text = data["text"]
         try:
             bing_key = data["bing_key"]
-        except:
+        except Exception:
             bing_key = None
 
     else:

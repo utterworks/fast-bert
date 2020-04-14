@@ -12,12 +12,7 @@ import logging
 
 import torch
 
-from transformers import (
-    BertTokenizer,
-    XLNetTokenizer,
-    RobertaTokenizer,
-    DistilBertTokenizer,
-)
+from transformers import AutoTokenizer
 
 
 from fast_bert.data_cls import BertDataBunch
@@ -124,27 +119,10 @@ def train():
             )
             finetuned_model = None
 
-        # Tokenizer
-        if training_config["model_type"] == "bert":
-            tokenizer = BertTokenizer.from_pretrained(
-                str(PRETRAINED_PATH),
-                do_lower_case=bool(training_config["do_lower_case"]),
-            )
-        elif training_config["model_type"] == "distilbert":
-            tokenizer = DistilBertTokenizer.from_pretrained(
-                str(PRETRAINED_PATH),
-                do_lower_case=bool(training_config["do_lower_case"]),
-            )
-        elif training_config["model_type"] == "roberta":
-            tokenizer = RobertaTokenizer.from_pretrained(
-                str(PRETRAINED_PATH),
-                do_lower_case=bool(training_config["do_lower_case"]),
-            )
-        elif training_config["model_type"] == "xlnet":
-            tokenizer = XLNetTokenizer.from_pretrained(
-                str(PRETRAINED_PATH),
-                do_lower_case=bool(training_config["do_lower_case"]),
-            )
+        # use auto-tokenizer
+        tokenizer = (
+            AutoTokenizer.from_pretrained(str(PRETRAINED_PATH), use_fast=True),
+        )
 
         device = torch.device("cuda")
         if torch.cuda.device_count() > 1:
@@ -154,7 +132,7 @@ def train():
 
         logger.info("Number of GPUs: {}".format(torch.cuda.device_count()))
 
-        if bool(training_config["multi_label"]) == True:
+        if bool(training_config["multi_label"]) is True:
             label_col = json.loads(training_config["label_col"])
         else:
             label_col = training_config["label_col"]
@@ -180,7 +158,7 @@ def train():
         )
 
         metrics = []
-        if bool(training_config["multi_label"]) == False:
+        if bool(training_config["multi_label"]) is False:
             metrics.append({"name": "accuracy", "function": accuracy})
         else:
             metrics.append({"name": "accuracy_thresh", "function": accuracy_thresh})
@@ -248,4 +226,3 @@ if __name__ == "__main__":
 
     # A zero exit code causes the job to be marked a Succeeded.
     sys.exit(0)
-

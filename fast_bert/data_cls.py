@@ -10,48 +10,7 @@ import shutil
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from transformers import (
-    WEIGHTS_NAME,
-    BertConfig,
-    BertForSequenceClassification,
-    BertTokenizer,
-    XLMConfig,
-    XLMForSequenceClassification,
-    XLMTokenizer,
-    XLNetConfig,
-    XLNetForSequenceClassification,
-    XLNetTokenizer,
-    RobertaConfig,
-    RobertaForSequenceClassification,
-    RobertaTokenizer,
-    CamembertConfig,
-    CamembertForSequenceClassification,
-    CamembertTokenizer,
-    AlbertConfig,
-    AlbertForSequenceClassification,
-    AlbertTokenizer,
-    DistilBertConfig,
-    DistilBertForSequenceClassification,
-    DistilBertTokenizer,
-)
-
-MODEL_CLASSES = {
-    "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
-    "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
-    "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-    "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-    "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-    "distilbert": (
-        DistilBertConfig,
-        DistilBertForSequenceClassification,
-        DistilBertTokenizer,
-    ),
-    "camembert-base": (
-        CamembertConfig,
-        CamembertForSequenceClassification,
-        CamembertTokenizer,
-    ),
-}
+from transformers import AutoTokenizer
 
 
 class InputExample(object):
@@ -404,11 +363,8 @@ class BertDataBunch(object):
             label_dir = Path(label_dir)
 
         if isinstance(tokenizer, str):
-            _, _, tokenizer_class = MODEL_CLASSES[model_type]
             # instantiate the new tokeniser object using the tokeniser name
-            tokenizer = tokenizer_class.from_pretrained(
-                tokenizer, do_lower_case=("uncased" in tokenizer)
-            )
+            tokenizer = AutoTokenizer.from_pretrained(tokenizer, use_fast=True)
 
         self.tokenizer = tokenizer
         self.data_dir = data_dir
@@ -554,8 +510,8 @@ class BertDataBunch(object):
             file_name = self.val_file
         elif set_type == "test":
             file_name = (
-                "test"
-            )  # test is not supposed to be a file - just a list of texts
+                "test"  # test is not supposed to be a file - just a list of texts
+            )
 
         cached_features_file = os.path.join(
             self.cache_dir,
