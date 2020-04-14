@@ -1,90 +1,14 @@
 import os
 import torch
-from transformers import BertTokenizer
 from .data_cls import BertDataBunch
 from .learner_cls import BertLearner
-from .modeling import (
-    BertForMultiLabelSequenceClassification,
-    XLNetForMultiLabelSequenceClassification,
-    RobertaForMultiLabelSequenceClassification,
-    DistilBertForMultiLabelSequenceClassification,
-    CamembertForMultiLabelSequenceClassification,
-    AlbertForMultiLabelSequenceClassification,
-)
 
-from transformers import (
-    WEIGHTS_NAME,
-    BertConfig,
-    BertForSequenceClassification,
-    BertTokenizer,
-    XLMConfig,
-    XLMForSequenceClassification,
-    XLMTokenizer,
-    XLNetConfig,
-    XLNetForSequenceClassification,
-    XLNetTokenizer,
-    RobertaConfig,
-    RobertaForSequenceClassification,
-    RobertaTokenizer,
-    CamembertConfig,
-    CamembertForSequenceClassification,
-    CamembertTokenizer,
-    AlbertConfig,
-    AlbertForSequenceClassification,
-    AlbertTokenizer,
-    DistilBertConfig,
-    DistilBertForSequenceClassification,
-    DistilBertTokenizer,
-)
+from transformers import AutoTokenizer
 
 import warnings
 
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
-
-MODEL_CLASSES = {
-    "bert": (
-        BertConfig,
-        (BertForSequenceClassification, BertForMultiLabelSequenceClassification),
-        BertTokenizer,
-    ),
-    "xlnet": (
-        XLNetConfig,
-        (XLNetForSequenceClassification, XLNetForMultiLabelSequenceClassification),
-        XLNetTokenizer,
-    ),
-    "xlm": (
-        XLMConfig,
-        (XLMForSequenceClassification, XLMForSequenceClassification),
-        XLMTokenizer,
-    ),
-    "roberta": (
-        RobertaConfig,
-        (RobertaForSequenceClassification, RobertaForMultiLabelSequenceClassification),
-        RobertaTokenizer,
-    ),
-    "distilbert": (
-        DistilBertConfig,
-        (
-            DistilBertForSequenceClassification,
-            DistilBertForMultiLabelSequenceClassification,
-        ),
-        DistilBertTokenizer,
-    ),
-    "albert": (
-        AlbertConfig,
-        (AlbertForSequenceClassification, AlbertForMultiLabelSequenceClassification),
-        AlbertTokenizer,
-    ),
-    "camembert-base": (
-        CamembertConfig,
-        (
-            CamembertForSequenceClassification,
-            CamembertForMultiLabelSequenceClassification,
-        ),
-        CamembertTokenizer,
-    ),
-}
 
 
 class BertClassificationPredictor(object):
@@ -94,6 +18,7 @@ class BertClassificationPredictor(object):
         label_path,
         multi_label=False,
         model_type="bert",
+        use_fast_tokenizer=True,
         do_lower_case=True,
     ):
         self.model_path = model_path
@@ -102,16 +27,14 @@ class BertClassificationPredictor(object):
         self.model_type = model_type
         self.do_lower_case = do_lower_case
 
+        # Use auto-tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_path, use_fast=use_fast_tokenizer
+        )
+
         self.learner = self.get_learner()
 
     def get_learner(self):
-
-        _, _, tokenizer_class = MODEL_CLASSES[self.model_type]
-        # instantiate the new tokeniser object using the tokeniser name
-        tokenizer = tokenizer_class.from_pretrained(
-            self.model_path, do_lower_case=self.do_lower_case
-        )
-
         if torch.cuda.is_available():
             device = torch.device("cuda")
         else:
@@ -120,7 +43,7 @@ class BertClassificationPredictor(object):
         databunch = BertDataBunch(
             self.label_path,
             self.label_path,
-            tokenizer,
+            self.tokenizer,
             train_file=None,
             val_file=None,
             batch_size_per_gpu=32,
