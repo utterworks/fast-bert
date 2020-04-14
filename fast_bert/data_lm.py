@@ -319,7 +319,7 @@ class BertLMDataBunch(object):
         masked_indices[:, 0] = False
         masked_indices[:, -1] = False
 
-        labels[~masked_indices] = -1  # We only compute loss on masked tokens
+        labels[~masked_indices] = -100  # We only compute loss on masked tokens
 
         # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
         indices_replaced = (
