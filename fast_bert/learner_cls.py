@@ -123,6 +123,7 @@ class BertLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
+        freeze_transformer_layers=False
     ):
 
         model_state_dict = None
@@ -171,6 +172,7 @@ class BertLearner(Learner):
             max_grad_norm,
             adam_epsilon,
             logging_steps,
+            freeze_transformer_layers
         )
 
     def __init__(
@@ -192,6 +194,7 @@ class BertLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
+        freeze_transformer_layers=False
     ):
 
         super(BertLearner, self).__init__(
@@ -214,6 +217,12 @@ class BertLearner(Learner):
         # Classification specific attributes
         self.multi_label = multi_label
         self.metrics = metrics
+
+        # Freezing transformer model layers
+        if freeze_transformer_layers:
+            for name, param in self.model.named_parameters():
+                if name.startswith(data.model_type):
+                    param.requires_grad = False
 
     # def freeze_to(self, n: int) -> None:
     #     "Freeze layers up to layer group `n`."
