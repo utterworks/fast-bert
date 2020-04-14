@@ -136,8 +136,13 @@ class BertLearner(Learner):
             str(pretrained_path), num_labels=len(dataBunch.labels)
         )
 
+        if torch.cuda.is_available():
+            map_location = lambda storage, loc: storage.cuda()
+        else:
+            map_location = 'cpu'
+
         if finetuned_wgts_path:
-            model_state_dict = torch.load(finetuned_wgts_path)
+            model_state_dict = torch.load(finetuned_wgts_path, map_location=map_location)
         else:
             model_state_dict = None
 
