@@ -38,6 +38,11 @@ class BertAbsLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
+        alpha=0.95,
+        beam_size=5,
+        min_length=50,
+        max_length=200,
+        block_trigram=True,
     ):
 
         model_state_dict = None
@@ -46,8 +51,13 @@ class BertAbsLearner(Learner):
 
         config_class, model_class = MODEL_CLASSES[model_type]
 
+        if torch.cuda.is_available():
+            map_location = lambda storage, loc: storage.cuda()
+        else:
+            map_location = 'cpu'
+
         if finetuned_wgts_path:
-            model_state_dict = torch.load(finetuned_wgts_path)
+            model_state_dict = torch.load(finetuned_wgts_path, map_location=map_location)
         else:
             model_state_dict = None
 
@@ -73,6 +83,11 @@ class BertAbsLearner(Learner):
             max_grad_norm,
             adam_epsilon,
             logging_steps,
+            alpha,
+            beam_size,
+            min_length,
+            max_length,
+            block_trigram,
         )
 
     def __init__(
