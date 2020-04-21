@@ -24,7 +24,7 @@ chmod +x bert/serve
 
 # Get the region defined in the current configuration (default to us-west-2 if none defined)
 region=$(aws configure get region)
-region=${region:-eu-west-1}
+region=${region:-us-west-2}
 
 # If the repository doesn't exist in ECR, create it.
 
