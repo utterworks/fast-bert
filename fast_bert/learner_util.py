@@ -117,6 +117,9 @@ class Learner(object):
 
         path.mkdir(exist_ok=True)
 
+        # Convert path to str for save_pretrained calls
+        path = str(path)
+
         torch.cuda.empty_cache()
         # Save a trained model
         model_to_save = (
