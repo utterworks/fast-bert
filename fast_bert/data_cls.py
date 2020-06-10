@@ -306,7 +306,8 @@ class MultiLabelTextProcessor(TextProcessor):
                 # create one hot vector of labels
                 label_list = self.get_labels()
                 labels = [0] * len(label_list)
-                labels[label_list.index(row[label_col])] = 1
+                # cast with string in case labels are integers
+                labels[label_list.index(str(row[label_col]))] = 1
                 return labels
 
         """Creates examples for the training and dev sets."""
