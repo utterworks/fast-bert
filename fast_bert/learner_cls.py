@@ -157,7 +157,7 @@ class BertLearner(Learner):
             )
         else:
             if model_type == "electra":
-                ElectraConfig.from_pretrained(
+                config = ElectraConfig.from_pretrained(
                     str(pretrained_path),
                     model_type=model_type,
                     num_labels=len(dataBunch.labels),
