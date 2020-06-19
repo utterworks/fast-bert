@@ -306,7 +306,8 @@ class MultiLabelTextProcessor(TextProcessor):
                 # create one hot vector of labels
                 label_list = self.get_labels()
                 labels = [0] * len(label_list)
-                labels[label_list.index(row[label_col])] = 1
+                # cast with string in case labels are integers
+                labels[label_list.index(str(row[label_col]))] = 1
                 return labels
 
         """Creates examples for the training and dev sets."""
@@ -353,6 +354,7 @@ class BertDataBunch(object):
         logger=None,
         clear_cache=False,
         no_cache=False,
+        custom_sampler=None
     ):
 
         # just in case someone passes string instead of Path
@@ -382,6 +384,7 @@ class BertDataBunch(object):
         self.no_cache = no_cache
         self.model_type = model_type
         self.output_mode = "classification"
+        self.custom_sampler = custom_sampler
         if logger is None:
             logger = logging.getLogger()
         self.logger = logger
@@ -422,7 +425,12 @@ class BertDataBunch(object):
             )
 
             self.train_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
-            train_sampler = RandomSampler(train_dataset)
+
+            if self.custom_sampler is not None:
+                train_sampler = self.custom_sampler
+            else:
+                train_sampler = RandomSampler(train_dataset)
+
             self.train_dl = DataLoader(
                 train_dataset, sampler=train_sampler, batch_size=self.train_batch_size
             )

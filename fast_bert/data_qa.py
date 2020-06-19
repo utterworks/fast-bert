@@ -448,7 +448,10 @@ class BertQADataBunch(object):
                  version_2_with_negative=True,
                  multi_gpu=True, 
                  model_type='bert', 
-                 logger=None, clear_cache=False, no_cache=False):
+                 logger=None,
+                 clear_cache=False,
+                 no_cache=False,
+                 custom_sampler=None):
 
         # just in case someone passes string instead of Path
         if isinstance(data_dir, str):
@@ -475,6 +478,7 @@ class BertQADataBunch(object):
         self.n_gpu = 1
         self.no_cache = no_cache
         self.model_type = model_type
+        self.custom_sampler = custom_sampler
         if logger is None:
             logger = logging.getLogger()
         self.logger = logger
@@ -534,7 +538,12 @@ class BertQADataBunch(object):
                                     all_cls_index, all_p_mask)
             
             self.train_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
-            train_sampler = RandomSampler(dataset)
+
+            if self.custom_sampler is not None:
+                train_sampler = self.custom_sampler
+            else:
+                train_sampler = RandomSampler(train_dataset)
+
             self.train_dl = DataLoader(dataset, sampler=train_sampler, batch_size=self.train_batch_size)
         
         if val_file:
