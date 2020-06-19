@@ -49,6 +49,7 @@ from transformers import (
     DistilBertConfig,
     DistilBertForSequenceClassification,
     DistilBertTokenizer,
+    ElectraConfig,
 )
 
 from transformers import AutoModelForSequenceClassification, AutoConfig
@@ -155,11 +156,18 @@ class BertLearner(Learner):
                 str(pretrained_path), config=config, state_dict=model_state_dict
             )
         else:
-            config = AutoConfig.from_pretrained(
-                str(pretrained_path),
-                model_type=model_type,
-                num_labels=len(dataBunch.labels),
-            )
+            if model_type == "electra":
+                ElectraConfig.from_pretrained(
+                    str(pretrained_path),
+                    model_type=model_type,
+                    num_labels=len(dataBunch.labels),
+                )
+            else:
+                config = AutoConfig.from_pretrained(
+                    str(pretrained_path),
+                    model_type=model_type,
+                    num_labels=len(dataBunch.labels),
+                )
             model = AutoModelForSequenceClassification.from_pretrained(
                 str(pretrained_path), config=config, state_dict=model_state_dict
             )
