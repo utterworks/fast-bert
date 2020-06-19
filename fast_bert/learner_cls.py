@@ -125,7 +125,7 @@ class BertLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
-        freeze_transformer_layers=False
+        freeze_transformer_layers=False,
     ):
 
         model_state_dict = None
@@ -135,10 +135,12 @@ class BertLearner(Learner):
         if torch.cuda.is_available():
             map_location = lambda storage, loc: storage.cuda()
         else:
-            map_location = 'cpu'
+            map_location = "cpu"
 
         if finetuned_wgts_path:
-            model_state_dict = torch.load(finetuned_wgts_path, map_location=map_location)
+            model_state_dict = torch.load(
+                finetuned_wgts_path, map_location=map_location
+            )
         else:
             model_state_dict = None
 
@@ -154,7 +156,9 @@ class BertLearner(Learner):
             )
         else:
             config = AutoConfig.from_pretrained(
-                str(pretrained_path), num_labels=len(dataBunch.labels)
+                str(pretrained_path),
+                model_type=model_type,
+                num_labels=len(dataBunch.labels),
             )
             model = AutoModelForSequenceClassification.from_pretrained(
                 str(pretrained_path), config=config, state_dict=model_state_dict
@@ -180,7 +184,7 @@ class BertLearner(Learner):
             max_grad_norm,
             adam_epsilon,
             logging_steps,
-            freeze_transformer_layers
+            freeze_transformer_layers,
         )
 
     def __init__(
@@ -202,7 +206,7 @@ class BertLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
-        freeze_transformer_layers=False
+        freeze_transformer_layers=False,
     ):
 
         super(BertLearner, self).__init__(
