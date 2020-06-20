@@ -40,6 +40,9 @@ from transformers import (
     DistilBertConfig,
     DistilBertForSequenceClassification,
     DistilBertTokenizer,
+    ElectraConfig,
+    ElectraForSequenceClassification,
+    ElectraTokenizer,
     CamembertConfig,
     CamembertForSequenceClassification,
     CamembertTokenizer
@@ -51,6 +54,7 @@ MODEL_CLASSES = {
     "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
     "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
     "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
+    "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
     "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
 }
 
@@ -72,7 +76,7 @@ def create_corpus(text_list, target_path, logger=None):
             text = rm_useless_spaces(text)
             text = text.strip()
 
-            f.write(text)
+            f.write(text+" ")
 
 
 #            text_lines = [re.sub(r"\n(\s)*","",str(sent)) for i, sent in enumerate(nlp(str(text)).sents)]
@@ -348,4 +352,3 @@ class BertLMDataBunch(object):
         tmp_path.mkdir(exist_ok=True)
         with open(str(tmp_path / filename), "wb") as f:
             pickle.dump(self, f)
-

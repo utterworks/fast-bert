@@ -10,6 +10,7 @@ from transformers import (
     DistilBertForSequenceClassification,
     CamembertForSequenceClassification,
     AlbertForSequenceClassification,
+    ElectraForSequenceClassification
 )
 
 import torch
@@ -338,6 +339,41 @@ class CamembertForMultiLabelSequenceClassification(CamembertForSequenceClassific
         logits = self.classifier(sequence_output)
 
         outputs = (logits,) + outputs[2:]
+
+        if labels is not None:
+            loss_fct = BCEWithLogitsLoss()
+
+            loss = loss_fct(
+                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
+            )
+            outputs = (loss,) + outputs
+
+        return outputs  # (loss), logits, (hidden_states), (attentions)
+
+class ElectraForMultiLabelSequenceClassification(ElectraForSequenceClassification):
+    def forward(
+        self,
+        input_ids,
+        token_type_ids=None,
+        attention_mask=None,
+        labels=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+    ):
+        outputs = self.electra(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds
+        )
+
+        sequence_output = outputs[0]
+        logits = self.classifier(sequence_output)
+
+        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
 
         if labels is not None:
             loss_fct = BCEWithLogitsLoss()
