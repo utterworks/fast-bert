@@ -95,7 +95,7 @@ class Learner(object):
         return optimizer
 
     # Get learning rate scheduler
-    def get_scheduler(self, optimizer, t_total, schedule_type="warmup_linear"):
+    def get_scheduler(self, optimizer, t_total, schedule_type="warmup_cosine"):
 
         SCHEDULES = {
             None: get_constant_schedule,
@@ -106,9 +106,20 @@ class Learner(object):
             "warmup_cosine_hard_restarts": get_cosine_with_hard_restarts_schedule_with_warmup,
         }
 
-        return SCHEDULES[schedule_type](
-            optimizer, num_warmup_steps=self.warmup_steps, num_training_steps=t_total
-        )
+        if schedule_type==None or schedule_type=="none":
+            return SCHEDULES[schedule_type](
+                optimizer
+            )
+
+        elif schedule_type=="warmup_constant":
+            return SCHEDULES[schedule_type](
+                optimizer, num_warmup_steps=self.warmup_steps
+            )
+
+        else:
+            return SCHEDULES[schedule_type](
+                optimizer, num_warmup_steps=self.warmup_steps, num_training_steps=t_total
+            )
 
     def save_model(self, path=None):
 
