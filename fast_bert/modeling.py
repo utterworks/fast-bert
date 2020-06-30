@@ -47,7 +47,13 @@ class DistilBertForMultiLabelSequenceClassification(
         loss, logits = outputs[:2]
     """
 
-    def forward(self, input_ids, attention_mask=None, labels=None, head_mask=None):
+    def forward(
+            self,
+            input_ids,
+            attention_mask=None,
+            labels=None,
+            head_mask=None
+    ):
         distilbert_output = self.distilbert(
             input_ids=input_ids, attention_mask=attention_mask, head_mask=head_mask
         )
@@ -61,7 +67,7 @@ class DistilBertForMultiLabelSequenceClassification(
 
         outputs = (logits,) + distilbert_output[1:]
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(weight=self.weight, pos_weight=self.pos_weight)
 
             loss = loss_fct(
                 logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
@@ -121,7 +127,7 @@ class RobertaForMultiLabelSequenceClassification(RobertaForSequenceClassificatio
         outputs = (logits,) + outputs[2:]
 
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(weight=self.weight, pos_weight=self.pos_weight)
 
             loss = loss_fct(
                 logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
@@ -199,7 +205,7 @@ class BertForMultiLabelSequenceClassification(BertForSequenceClassification):
         outputs = (logits,) + outputs[2:]
 
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(weight=self.weight, pos_weight=self.pos_weight)
 
             loss = loss_fct(
                 logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
@@ -274,7 +280,7 @@ class XLNetForMultiLabelSequenceClassification(XLNetForSequenceClassification):
         outputs = (logits,) + transformer_outputs[1:]
 
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(weight=self.weight, pos_weight=self.pos_weight)
 
             loss = loss_fct(
                 logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
@@ -307,7 +313,7 @@ class AlbertForMultiLabelSequenceClassification(AlbertForSequenceClassification)
         outputs = (logits,) + outputs[2:]
 
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(weight=self.weight, pos_weight=self.pos_weight)
 
             loss = loss_fct(
                 logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
@@ -340,7 +346,7 @@ class CamembertForMultiLabelSequenceClassification(CamembertForSequenceClassific
         outputs = (logits,) + outputs[2:]
 
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(weight=self.weight, pos_weight=self.pos_weight)
 
             loss = loss_fct(
                 logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)

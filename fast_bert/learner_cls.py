@@ -127,6 +127,8 @@ class BertLearner(Learner):
         adam_epsilon=1e-8,
         logging_steps=100,
         freeze_transformer_layers=False,
+        pos_weight=None,
+        weight=None
     ):
 
         model_state_dict = None
@@ -147,6 +149,9 @@ class BertLearner(Learner):
 
         if multi_label is True:
             config_class, model_class, _ = MODEL_CLASSES[model_type]
+
+            model_class[1].pos_weight = pos_weight
+            model_class[1].weight = weight
 
             config = config_class.from_pretrained(
                 str(pretrained_path), num_labels=len(dataBunch.labels)
