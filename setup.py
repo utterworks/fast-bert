@@ -7,39 +7,39 @@ import subprocess
 # from pip.req import parse_requirements
 
 # install requirements for mixed precision training
-try:
-    import torch
+# try:
+#     import torch
 
-    TORCH_MAJOR = int(torch.__version__.split(".")[0])
+#     TORCH_MAJOR = int(torch.__version__.split(".")[0])
 
-    if TORCH_MAJOR == 0:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "git+https://github.com/NVIDIA/apex",
-                "-v",
-                "--no-cache-dir",
-            ]
-        )
-    else:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "git+https://github.com/NVIDIA/apex",
-                "-v",
-                "--no-cache-dir",
-                "--global-option=--cpp_ext",
-                "--global-option=--cuda_ext",
-            ]
-        )
-except Exception:
-    pass
+#     if TORCH_MAJOR == 0:
+#         subprocess.run(
+#             [
+#                 sys.executable,
+#                 "-m",
+#                 "pip",
+#                 "install",
+#                 "git+https://github.com/NVIDIA/apex",
+#                 "-v",
+#                 "--no-cache-dir",
+#             ]
+#         )
+#     else:
+#         subprocess.run(
+#             [
+#                 sys.executable,
+#                 "-m",
+#                 "pip",
+#                 "install",
+#                 "git+https://github.com/NVIDIA/apex",
+#                 "-v",
+#                 "--no-cache-dir",
+#                 "--global-option=--cpp_ext",
+#                 "--global-option=--cuda_ext",
+#             ]
+#         )
+# except Exception:
+#     pass
 
 
 with open("requirements.txt") as f:
