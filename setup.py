@@ -1,15 +1,16 @@
 import sys
 from io import open
 from setuptools import setup, find_packages
+import subprocess
+
 
 # from pip.req import parse_requirements
-print(sys.argv)
-if "apex" in sys.argv:
-    print("Installing Apex")
-    sys.argv.remove("apex")
 
-    # install requirements for mixed precision training
-    import subprocess
+print("Installing Apex")
+sys.argv.remove("apex")
+
+# install requirements for mixed precision training
+try:
     import torch
 
     TORCH_MAJOR = int(torch.__version__.split(".")[0])
@@ -40,6 +41,9 @@ if "apex" in sys.argv:
                 "--global-option=--cuda_ext",
             ]
         )
+except Exception:
+    pass
+
 
 with open("requirements.txt") as f:
     install_requires = f.read().strip().split("\n")
