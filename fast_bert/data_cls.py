@@ -458,7 +458,7 @@ class BertDataBunch(object):
 
             self.lr_finder_dl = DataLoader(
                 LRFinderDataset(
-                    data_dir, train_file, test_col=text_col, label_col=label_col
+                    data_dir, train_file, text_col=text_col, label_col=label_col
                 ),
                 sampler=train_sampler,
                 batch_size=self.train_batch_size,
