@@ -3,7 +3,9 @@ from io import open
 from setuptools import setup, find_packages
 
 # from pip.req import parse_requirements
+print(sys.argv)
 if "apex" in sys.argv:
+    print("Installing Apex")
     sys.argv.remove("apex")
 
     # install requirements for mixed precision training
