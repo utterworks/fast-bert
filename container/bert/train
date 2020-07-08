@@ -120,9 +120,7 @@ def train():
             finetuned_model = None
 
         # use auto-tokenizer
-        tokenizer = (
-            AutoTokenizer.from_pretrained(str(PRETRAINED_PATH), use_fast=True),
-        )
+        tokenizer = AutoTokenizer.from_pretrained(str(PRETRAINED_PATH), use_fast=True)
 
         device = torch.device("cuda")
         if torch.cuda.device_count() > 1:
