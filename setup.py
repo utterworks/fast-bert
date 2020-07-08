@@ -1,7 +1,43 @@
+import sys
 from io import open
 from setuptools import setup, find_packages
 
 # from pip.req import parse_requirements
+if "apex" in sys.argv:
+    sys.argv.remove("apex")
+
+    # install requirements for mixed precision training
+    import subprocess
+    import torch
+
+    TORCH_MAJOR = int(torch.__version__.split(".")[0])
+
+    if TORCH_MAJOR == 0:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "git+https://github.com/NVIDIA/apex",
+                "-v",
+                "--no-cache-dir",
+            ]
+        )
+    else:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "git+https://github.com/NVIDIA/apex",
+                "-v",
+                "--no-cache-dir",
+                "--global-option=--cpp_ext",
+                "--global-option=--cuda_ext",
+            ]
+        )
 
 with open("requirements.txt") as f:
     install_requires = f.read().strip().split("\n")

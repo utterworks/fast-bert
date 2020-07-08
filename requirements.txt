@@ -1,3 +1,4 @@
+torch-lr-finder
 pytorch-lamb
 tensorboardX
 fastprogress

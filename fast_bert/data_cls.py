@@ -7,7 +7,13 @@ import logging
 
 import shutil
 
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data import (
+    Dataset,
+    TensorDataset,
+    DataLoader,
+    RandomSampler,
+    SequentialSampler,
+)
 from torch.utils.data.distributed import DistributedSampler
 
 from transformers import AutoTokenizer
@@ -333,6 +339,21 @@ class MultiLabelTextProcessor(TextProcessor):
             )
 
 
+class LRFinderDataset(Dataset):
+    def __init__(self, data_dir, filename, text_col, label_col):
+        super().__init__()
+        self.text_col = text_col
+        self.label_col = label_col
+
+        self.data = pd.read_csv(os.path.join(data_dir, filename))
+
+    def __getitem__(self, idx):
+        return self.data.loc[idx, self.text_col], self.data.loc[idx, self.label_col]
+
+    def __len__(self):
+        return self.data.shape[0]
+
+
 class BertDataBunch(object):
     def __init__(
         self,
@@ -354,7 +375,7 @@ class BertDataBunch(object):
         logger=None,
         clear_cache=False,
         no_cache=False,
-        custom_sampler=None
+        custom_sampler=None,
     ):
 
         # just in case someone passes string instead of Path
@@ -433,6 +454,10 @@ class BertDataBunch(object):
 
             self.train_dl = DataLoader(
                 train_dataset, sampler=train_sampler, batch_size=self.train_batch_size
+            )
+
+            self.lr_finder_dl = LRFinderDataset(
+                data_dir, train_file, test_col=text_col, label_col=label_col
             )
 
         if val_file:

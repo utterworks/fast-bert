@@ -1,0 +1,12 @@
+flask 
+pathlib 
+gunicorn 
+gevent 
+scipy 
+sklearn 
+pandas 
+fastprogress 
+python-box 
+tensorboardX
+transformers==2.11.0
+pytorch_lightning
