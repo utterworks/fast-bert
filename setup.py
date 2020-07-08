@@ -6,9 +6,6 @@ import subprocess
 
 # from pip.req import parse_requirements
 
-print("Installing Apex")
-sys.argv.remove("apex")
-
 # install requirements for mixed precision training
 try:
     import torch
