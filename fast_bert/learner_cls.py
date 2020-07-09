@@ -463,7 +463,9 @@ class BertLearner(Learner):
 
         validation_scores = {metric["name"]: 0.0 for metric in self.metrics}
 
-        for step, batch in enumerate(progress_bar(self.data.val_dl)):
+        iterator = self.data.val_dl if quiet else progress_bar(self.data.val_dl)
+
+        for step, batch in enumerate(iterator):
             self.model.eval()
             batch = tuple(t.to(self.device) for t in batch)
 
@@ -576,6 +578,7 @@ class BertLearner(Learner):
         self,
         start_lr,
         end_lr=10,
+        use_val_loss=True,
         optimizer_type="lamb",
         num_iter=100,
         step_mode="exp",
@@ -643,12 +646,12 @@ class BertLearner(Learner):
             raise ValueError("smooth_f is outside the range [0, 1]")
 
         train_iter = TrainDataLoaderIter(self.data.train_dl)
-        val_iter = ValDataLoaderIter(self.data.val_dl)
 
         for iteration in tqdm(range(num_iter)):
             # train on batch and retrieve loss
             loss = self._train_batch(train_iter)
-            loss = self.validate(quiet=True, loss_only=True)["loss"]
+            if use_val_loss:
+                loss = self.validate(quiet=True, loss_only=True)["loss"]
 
             # Update the learning rate
             self.history["lr"].append(lr_schedule.get_lr()[0])
