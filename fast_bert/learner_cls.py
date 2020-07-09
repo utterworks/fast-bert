@@ -716,7 +716,7 @@ class BertLearner(Learner):
         with torch.no_grad():
             for batch in val_iter:
                 batch = tuple(t.to(self.device) for t in batch)
-
+                print(batch[0].size(0))
                 inputs = {
                     "input_ids": batch[0],
                     "attention_mask": batch[1],
