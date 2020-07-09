@@ -638,6 +638,7 @@ class BertLearner(Learner):
             # loss = self._train_batch(train_iter)
             loss = self._validate(val_iter)
 
+            print("loss is {}".format(loss))
             # Update the learning rate
             self.history["lr"].append(lr_schedule.get_lr()[0])
             lr_schedule.step()
