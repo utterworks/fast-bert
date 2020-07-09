@@ -717,7 +717,7 @@ class BertLearner(Learner):
         with torch.no_grad():
             for batch in val_iter:
                 batch = tuple(t.to(self.device) for t in batch)
-                print(batch[0].size(0))
+                print("Batch size: {}".format(batch[0].size(0)))
                 inputs = {
                     "input_ids": batch[0],
                     "attention_mask": batch[1],
@@ -732,6 +732,8 @@ class BertLearner(Learner):
                 loss = self.model(**inputs)[0]
 
                 running_loss += loss.item() * batch_size
+
+        print("running loss: {}".format(running_loss))
 
         return running_loss / len(val_iter.dataset)
 
