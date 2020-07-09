@@ -641,12 +641,12 @@ class BertLearner(Learner):
             raise ValueError("smooth_f is outside the range [0, 1]")
 
         train_iter = TrainDataLoaderIter(self.data.train_dl)
-        # val_iter = ValDataLoaderIter(self.data.val_dl)
+        val_iter = ValDataLoaderIter(self.data.val_dl)
 
         for iteration in tqdm(range(num_iter)):
             # train on batch and retrieve loss
             loss = self._train_batch(train_iter)
-            # loss = self._validate(val_iter)
+            loss = self._validate(val_iter)
 
             # Update the learning rate
             self.history["lr"].append(lr_schedule.get_lr()[0])
@@ -984,5 +984,5 @@ class TrainDataLoaderIter(DataLoaderIter):
         return batch
 
 
-class ValDataLoaderIter(DataLoaderIter):
+class ValDataLoaderIter(TrainDataLoaderIter):
     pass
