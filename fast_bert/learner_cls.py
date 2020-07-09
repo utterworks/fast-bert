@@ -117,6 +117,51 @@ except Exception:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
 
 
+def load_model(dataBunch, pretrained_path, finetuned_wgts_path, device, multi_label):
+
+    model_type = dataBunch.model_type
+    model_state_dict = None
+
+    if torch.cuda.is_available():
+        map_location = lambda storage, loc: storage.cuda()
+    else:
+        map_location = "cpu"
+
+    if finetuned_wgts_path:
+        model_state_dict = torch.load(finetuned_wgts_path, map_location=map_location)
+    else:
+        model_state_dict = None
+
+    if multi_label is True:
+        config_class, model_class, _ = MODEL_CLASSES[model_type]
+
+        config = config_class.from_pretrained(
+            str(pretrained_path), num_labels=len(dataBunch.labels)
+        )
+
+        model = model_class[1].from_pretrained(
+            str(pretrained_path), config=config, state_dict=model_state_dict
+        )
+    else:
+        if model_type == "electra":
+            config = ElectraConfig.from_pretrained(
+                str(pretrained_path),
+                model_type=model_type,
+                num_labels=len(dataBunch.labels),
+            )
+        else:
+            config = AutoConfig.from_pretrained(
+                str(pretrained_path),
+                model_type=model_type,
+                num_labels=len(dataBunch.labels),
+            )
+        model = AutoModelForSequenceClassification.from_pretrained(
+            str(pretrained_path), config=config, state_dict=model_state_dict
+        )
+
+    return model.to(device)
+
+
 class BertLearner(Learner):
     @staticmethod
     def from_pretrained_model(
@@ -139,55 +184,13 @@ class BertLearner(Learner):
         logging_steps=100,
         freeze_transformer_layers=False,
     ):
-
-        model_state_dict = None
-
-        model_type = dataBunch.model_type
-
-        if torch.cuda.is_available():
-            map_location = lambda storage, loc: storage.cuda()
-        else:
-            map_location = "cpu"
-
-        if finetuned_wgts_path:
-            model_state_dict = torch.load(
-                finetuned_wgts_path, map_location=map_location
-            )
-        else:
-            model_state_dict = None
-
-        if multi_label is True:
-            config_class, model_class, _ = MODEL_CLASSES[model_type]
-
-            config = config_class.from_pretrained(
-                str(pretrained_path), num_labels=len(dataBunch.labels)
-            )
-
-            model = model_class[1].from_pretrained(
-                str(pretrained_path), config=config, state_dict=model_state_dict
-            )
-        else:
-            if model_type == "electra":
-                config = ElectraConfig.from_pretrained(
-                    str(pretrained_path),
-                    model_type=model_type,
-                    num_labels=len(dataBunch.labels),
-                )
-            else:
-                config = AutoConfig.from_pretrained(
-                    str(pretrained_path),
-                    model_type=model_type,
-                    num_labels=len(dataBunch.labels),
-                )
-            model = AutoModelForSequenceClassification.from_pretrained(
-                str(pretrained_path), config=config, state_dict=model_state_dict
-            )
-
         if is_fp16 and (IS_AMP_AVAILABLE is False):
             logger.debug("Apex not installed. switching off FP16 training")
             is_fp16 = False
 
-        model.to(device)
+        model = load_model(
+            dataBunch, pretrained_path, finetuned_wgts_path, device, multi_label
+        )
 
         return BertLearner(
             dataBunch,
@@ -256,6 +259,7 @@ class BertLearner(Learner):
         # LR Finder
         self.history = {"lr": [], "loss": []}
         self.best_loss = None
+        self.state_cacher = None
 
         # Freezing transformer model layers
         if freeze_transformer_layers:
@@ -560,7 +564,8 @@ class BertLearner(Learner):
 
     def reset(self):
         """Restores the model and optimizer to their initial states."""
-
+        if hasattr(self.model, "module"):
+            self.model = self.model.module
         self.model.load_state_dict(self.state_cacher.retrieve("model"))
         self.optimizer.load_state_dict(self.state_cacher.retrieve("optimizer"))
         self.model.to(self.device)
@@ -598,6 +603,8 @@ class BertLearner(Learner):
         # Reset test results
         self.history = {"lr": [], "loss": []}
         self.best_loss = None
+        self.state_cacher = StateCacher(True, cache_dir=self.output_dir)
+
         self.optimizer = self.get_optimizer(lr=start_lr, optimizer_type=optimizer_type)
 
         if hasattr(self.model, "module"):
@@ -607,6 +614,9 @@ class BertLearner(Learner):
             self.model, self.optimizer = amp.initialize(
                 self.model, self.optimizer, opt_level=self.fp16_opt_level
             )
+
+        self.state_cacher.store("model", self.model.state_dict())
+        self.state_cacher.store("optimizer", self.optimizer.state_dict())
 
         # Parallelize the model architecture
         if self.multi_gpu is True:
@@ -631,14 +641,13 @@ class BertLearner(Learner):
             raise ValueError("smooth_f is outside the range [0, 1]")
 
         train_iter = TrainDataLoaderIter(self.data.train_dl)
-        val_iter = ValDataLoaderIter(self.data.val_dl)
+        # val_iter = ValDataLoaderIter(self.data.val_dl)
 
         for iteration in tqdm(range(num_iter)):
             # train on batch and retrieve loss
             loss = self._train_batch(train_iter)
             # loss = self._validate(val_iter)
 
-            print("loss is {}".format(loss))
             # Update the learning rate
             self.history["lr"].append(lr_schedule.get_lr()[0])
             lr_schedule.step()
@@ -659,6 +668,8 @@ class BertLearner(Learner):
                 break
 
         print("Learning rate search finished. See the graph with {finder_name}.plot()")
+        self.reset()
+        self.plot()
 
     def _train_batch(self, train_iter):
         self.model.train()
@@ -669,7 +680,6 @@ class BertLearner(Learner):
             batch = next(train_iter)
 
             batch = tuple(t.to(self.device) for t in batch)
-            print("Batch size: {}".format(batch[0].size(0)))
             inputs = {
                 "input_ids": batch[0],
                 "attention_mask": batch[1],
@@ -717,7 +727,7 @@ class BertLearner(Learner):
         with torch.no_grad():
             for batch in val_iter:
                 batch = tuple(t.to(self.device) for t in batch)
-                print("Batch size: {}".format(batch[0].size(0)))
+
                 inputs = {
                     "input_ids": batch[0],
                     "attention_mask": batch[1],
@@ -732,8 +742,6 @@ class BertLearner(Learner):
                 loss = self.model(**inputs)[0]
 
                 running_loss += loss.item() * batch_size
-
-        print("running loss: {}".format(running_loss))
 
         return running_loss / len(val_iter.dataset)
 
