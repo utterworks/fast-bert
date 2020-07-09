@@ -446,10 +446,11 @@ class BertLearner(Learner):
             return global_step, tr_loss / global_step
 
     ### Evaluate the model
-    def validate(self):
-        self.logger.info("Running evaluation")
-        self.logger.info("  Num examples = %d", len(self.data.val_dl.dataset))
-        self.logger.info("  Batch size = %d", self.data.val_batch_size)
+    def validate(self, quiet=False, loss_only=False):
+        if quiet is False:
+            self.logger.info("Running evaluation")
+            self.logger.info("  Num examples = %d", len(self.data.val_dl.dataset))
+            self.logger.info("  Batch size = %d", self.data.val_batch_size)
 
         all_logits = None
         all_labels = None
@@ -505,14 +506,15 @@ class BertLearner(Learner):
 
         eval_loss = eval_loss / nb_eval_steps
 
-        # Evaluation metrics
-        for metric in self.metrics:
-            validation_scores[metric["name"]] = metric["function"](
-                all_logits, all_labels
-            )
-
         results = {"loss": eval_loss}
-        results.update(validation_scores)
+
+        if loss_only is False:
+            # Evaluation metrics
+            for metric in self.metrics:
+                validation_scores[metric["name"]] = metric["function"](
+                    all_logits, all_labels
+                )
+            results.update(validation_scores)
 
         return results
 
@@ -646,7 +648,7 @@ class BertLearner(Learner):
         for iteration in tqdm(range(num_iter)):
             # train on batch and retrieve loss
             loss = self._train_batch(train_iter)
-            loss = self._validate(val_iter)
+            loss = self.validate(quiet=True, loss_only=True)["loss"]
 
             # Update the learning rate
             self.history["lr"].append(lr_schedule.get_lr()[0])
