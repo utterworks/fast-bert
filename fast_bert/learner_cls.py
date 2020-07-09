@@ -635,8 +635,8 @@ class BertLearner(Learner):
 
         for iteration in tqdm(range(num_iter)):
             # train on batch and retrieve loss
-            loss = self._train_batch(train_iter)
-            # loss = self._validate(val_iter)
+            # loss = self._train_batch(train_iter)
+            loss = self._validate(val_iter)
 
             # Update the learning rate
             self.history["lr"].append(lr_schedule.get_lr()[0])
