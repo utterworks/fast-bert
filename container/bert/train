@@ -91,6 +91,15 @@ def train():
             hyperparameters = json.load(tc)
             print(hyperparameters)
 
+        # convert string bools to booleans
+        training_config["multi_label"] = training_config["multi_label"] == "True"
+        training_config["fp16"] = training_config["fp16"] == "True"
+        training_config["text_col"] = training_config.get("text_col", "text")
+        training_config["label_col"] = training_config.get("label_col", "label")
+        training_config["train_file"] = training_config.get("train_file", "train.csv")
+        training_config["val_file"] = training_config.get("val_file", "val.csv")
+        training_config["label_file"] = training_config.get("label_file", "labels.csv")
+
         # Logger
         # logfile = str(LOG_PATH/'log-{}-{}.txt'.format(run_start_time, training_config["run_text"]))
         logging.basicConfig(
@@ -130,7 +139,7 @@ def train():
 
         logger.info("Number of GPUs: {}".format(torch.cuda.device_count()))
 
-        if bool(training_config["multi_label"]) is True:
+        if training_config["multi_label"] is True:
             label_col = json.loads(training_config["label_col"])
         else:
             label_col = training_config["label_col"]
@@ -150,13 +159,13 @@ def train():
             batch_size_per_gpu=int(hyperparameters["train_batch_size"]),
             max_seq_length=int(hyperparameters["max_seq_length"]),
             multi_gpu=multi_gpu,
-            multi_label=bool(training_config["multi_label"]),
+            multi_label=training_config["multi_label"],
             model_type=training_config["model_type"],
             logger=logger,
         )
 
         metrics = []
-        if bool(training_config["multi_label"]) is False:
+        if training_config["multi_label"] is False:
             metrics.append({"name": "accuracy", "function": accuracy})
         else:
             metrics.append({"name": "accuracy_thresh", "function": accuracy_thresh})
@@ -164,12 +173,6 @@ def train():
             metrics.append({"name": "fbeta", "function": fbeta})
 
         logger.info("databunch labels: {}".format(len(databunch.labels)))
-        logger.info(
-            "multilabel: {}, multilabel type: {}".format(
-                bool(training_config["multi_label"]),
-                type(bool(training_config["multi_label"])),
-            )
-        )
 
         # Initialise the learner
         learner = BertLearner.from_pretrained_model(
@@ -180,12 +183,12 @@ def train():
             logger=logger,
             output_dir=Path(model_path),
             finetuned_wgts_path=finetuned_model,
-            is_fp16=bool(training_config["fp16"]),
+            is_fp16=training_config["fp16"],
             fp16_opt_level=training_config["fp16_opt_level"],
             warmup_steps=int(hyperparameters["warmup_steps"]),
             grad_accumulation_steps=int(training_config["grad_accumulation_steps"]),
             multi_gpu=multi_gpu,
-            multi_label=bool(training_config["multi_label"]),
+            multi_label=training_config["multi_label"],
             logging_steps=int(training_config["logging_steps"]),
         )
 
