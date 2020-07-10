@@ -7,4 +7,4 @@ spacy
 transformers==2.11.0
 pandas
 python-box
-tokenizers
+tokenizers==0.8.0

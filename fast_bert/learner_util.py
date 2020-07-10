@@ -139,4 +139,4 @@ class Learner(object):
         model_to_save.save_pretrained(path)
 
         # save the tokenizer
-        self.data.tokenizer.save_pretrained(str(path))
+        self.data.tokenizer.save_pretrained(path)
