@@ -1,14 +1,15 @@
+import sys
 from io import open
 from setuptools import setup, find_packages
+import subprocess
 
-# from pip.req import parse_requirements
 
 with open("requirements.txt") as f:
     install_requires = f.read().strip().split("\n")
 
 setup(
     name="fast_bert",
-    version="1.7.2",
+    version="1.8.1",
     description="AI Library using BERT",
     author="Kaushal Trivedi",
     author_email="kaushaltrivedi@me.com",

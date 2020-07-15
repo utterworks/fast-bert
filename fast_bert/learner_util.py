@@ -106,19 +106,19 @@ class Learner(object):
             "warmup_cosine_hard_restarts": get_cosine_with_hard_restarts_schedule_with_warmup,
         }
 
-        if schedule_type==None or schedule_type=="none":
-            return SCHEDULES[schedule_type](
-                optimizer
-            )
+        if schedule_type == None or schedule_type == "none":
+            return SCHEDULES[schedule_type](optimizer)
 
-        elif schedule_type=="warmup_constant":
+        elif schedule_type == "warmup_constant":
             return SCHEDULES[schedule_type](
                 optimizer, num_warmup_steps=self.warmup_steps
             )
 
         else:
             return SCHEDULES[schedule_type](
-                optimizer, num_warmup_steps=self.warmup_steps, num_training_steps=t_total
+                optimizer,
+                num_warmup_steps=self.warmup_steps,
+                num_training_steps=t_total,
             )
 
     def save_model(self, path=None):

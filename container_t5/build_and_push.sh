@@ -5,7 +5,7 @@
 
 # The argument to this script is the image name. This will be used as the image on the local
 # machine and combined with the account and region to form the repository name for ECR.
-IMAGE="fluent-fast-bert"
+IMAGE="fluent-fast-bert-t5"
 
 # parameters
 FASTAI_VERSION="1.0"
@@ -19,12 +19,12 @@ then
     exit 255
 fi
 
-chmod +x bert/train
-chmod +x bert/serve
+chmod +x t5/train
+chmod +x t5/serve
 
 # Get the region defined in the current configuration (default to us-west-2 if none defined)
 region=$(aws configure get region)
-region=${region:-us-west-2}
+region=${region:-eu-west-1}
 
 # If the repository doesn't exist in ECR, create it.
 
@@ -48,7 +48,7 @@ do
     echo "Building image with arch=${arch}, region=${region}"
     TAG="${FASTAI_VERSION}-${arch}-${PY_VERSION}"
     FULLNAME="${account}.dkr.ecr.${region}.amazonaws.com/${IMAGE}:${TAG}"
-    docker build -t ${IMAGE}:${TAG} --build-arg ARCH="$arch" -f "Dockerfile_${arch}" .
+    docker build -t ${IMAGE}:${TAG} --build-arg ARCH="$arch" .
     docker tag ${IMAGE}:${TAG} ${FULLNAME}
     docker push ${FULLNAME}
 done
