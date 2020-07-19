@@ -7,7 +7,7 @@ import pickle
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
+from transformers import (WEIGHTS_NAME, BertConfig,
                                   BertForSequenceClassification, BertTokenizer,
                                   XLMConfig, XLMForSequenceClassification,
                                   XLMTokenizer, XLNetConfig,
@@ -349,7 +349,7 @@ class BertDataBunch(object):
 
     def __init__(self, data_dir, label_dir, tokenizer, train_file='train.csv', val_file='val.csv', test_data=None,
                  label_file='labels.csv', text_col='text', label_col='label', bs=32, maxlen=512,
-                 multi_gpu=True, multi_label=False, backend="nccl", model_type='bert'):
+                 multi_gpu=True, multi_label=False, backend="nccl", model_type='bert', custom_sampler=None):
         
         if isinstance(tokenizer, str):
             _,_,tokenizer_class = MODEL_CLASSES[model_type]
@@ -365,6 +365,7 @@ class BertDataBunch(object):
         self.test_dl = None
         self.multi_label = multi_label
         self.n_gpu = 0
+        self.custom_sampler = custom_sampler
         if multi_gpu:
             self.n_gpu = torch.cuda.device_count()
 
@@ -401,7 +402,10 @@ class BertDataBunch(object):
             train_batch_size = bs * max(1, self.n_gpu)
 
             if multi_gpu:
-                train_sampler = RandomSampler(train_data)
+                if self.custom_sampler is not None:
+                    train_sampler = self.custom_sampler
+                else:
+                    train_sampler = RandomSampler(train_data)
             else:
                 try:
 #                    torch.distributed.init_process_group(backend='nccl')

@@ -1,0 +1,10 @@
+matplotlib
+pytorch-lamb
+tensorboardX
+fastprogress
+sklearn
+spacy
+tokenizers==0.7.0
+transformers==2.11.0
+pandas
+python-box

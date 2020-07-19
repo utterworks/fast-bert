@@ -97,8 +97,18 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
+# Pycharm project settings
+.idea
+
 # mkdocs documentation
 /site
 
 # mypy
 .mypy_cache/
+
+.output
+cache/*
+cached*
+
+# OS related
+.DS_Store

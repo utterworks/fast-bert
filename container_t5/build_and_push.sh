@@ -5,7 +5,7 @@
 
 # The argument to this script is the image name. This will be used as the image on the local
 # machine and combined with the account and region to form the repository name for ECR.
-IMAGE="fluent-sagemaker-fast-bert"
+IMAGE="fluent-fast-bert-t5"
 
 # parameters
 FASTAI_VERSION="1.0"
@@ -19,8 +19,8 @@ then
     exit 255
 fi
 
-chmod +x bert/train.py
-chmod +x bert/serve.py
+chmod +x t5/train
+chmod +x t5/serve
 
 # Get the region defined in the current configuration (default to us-west-2 if none defined)
 region=$(aws configure get region)
@@ -37,15 +37,18 @@ fi
 
 # Get the login command from ECR and execute it directly
 $(aws ecr get-login --region ${region} --no-include-email)
+# aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin 579360261297.dkr.ecr.eu-west-1.amazonaws.com/fluent-fast-bert
 
 # Get the login command from ECR in order to pull down the SageMaker PyTorch image
 $(aws ecr get-login --registry-ids 520713654638 --region ${region} --no-include-email)
 
 # loop for each architecture (cpu & gpu)
-
-echo "Building image with arch=gpu, region=${region}"
-TAG="pytorch-gpu-${PY_VERSION}"
-FULLNAME="${account}.dkr.ecr.${region}.amazonaws.com/${IMAGE}:${TAG}"
-docker build -t ${IMAGE}:${TAG} --no-cache --build-arg ARCH="gpu" -f "Dockerfile_pytorch_nvidia" .
-docker tag ${IMAGE}:${TAG} ${FULLNAME}
-docker push ${FULLNAME}
+for arch in gpu
+do  
+    echo "Building image with arch=${arch}, region=${region}"
+    TAG="${FASTAI_VERSION}-${arch}-${PY_VERSION}"
+    FULLNAME="${account}.dkr.ecr.${region}.amazonaws.com/${IMAGE}:${TAG}"
+    docker build -t ${IMAGE}:${TAG} --build-arg ARCH="$arch" .
+    docker tag ${IMAGE}:${TAG} ${FULLNAME}
+    docker push ${FULLNAME}
+done

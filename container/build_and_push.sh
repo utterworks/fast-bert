@@ -5,7 +5,7 @@
 
 # The argument to this script is the image name. This will be used as the image on the local
 # machine and combined with the account and region to form the repository name for ECR.
-IMAGE="sagemaker-bert"
+IMAGE="fluent-fast-bert"
 
 # parameters
 FASTAI_VERSION="1.0"
@@ -24,7 +24,7 @@ chmod +x bert/serve
 
 # Get the region defined in the current configuration (default to us-west-2 if none defined)
 region=$(aws configure get region)
-region=${region:-eu-west-1}
+region=${region:-us-west-2}
 
 # If the repository doesn't exist in ECR, create it.
 
@@ -37,6 +37,7 @@ fi
 
 # Get the login command from ECR and execute it directly
 $(aws ecr get-login --region ${region} --no-include-email)
+# aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin 579360261297.dkr.ecr.eu-west-1.amazonaws.com/fluent-fast-bert
 
 # Get the login command from ECR in order to pull down the SageMaker PyTorch image
 $(aws ecr get-login --registry-ids 520713654638 --region ${region} --no-include-email)

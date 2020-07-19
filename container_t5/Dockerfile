@@ -28,7 +28,7 @@ RUN curl -o ~/miniconda.sh -LO  https://repo.continuum.io/miniconda/Miniconda3-l
      chmod +x ~/miniconda.sh && \
      ~/miniconda.sh -b -p /opt/conda && \
      rm ~/miniconda.sh && \
-     /opt/conda/bin/conda install -y python=3.7 numpy pyyaml scipy ipython mkl mkl-include ninja cython && \
+     /opt/conda/bin/conda install -y python=3.7 numpy pyyaml scipy ipython mkl mkl-include ninja cython typing && \
      /opt/conda/bin/conda install -y -c pytorch magma-cuda100 && \
      /opt/conda/bin/conda clean -ya
 ENV PATH /opt/conda/bin:$PATH
@@ -39,7 +39,6 @@ RUN python --version
 RUN pip --version
 
 # #RUN df -a
-
 RUN pip install --trusted-host pypi.python.org -v --log /tmp/pip.log torch torchvision
 
 
@@ -50,31 +49,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONIOENCODING=UTF-8 LANG=C.U
 RUN nvcc --version
 RUN which nvcc
 
-RUN pip --no-cache-dir install \
-    flask \
-    pathlib \
-    gunicorn \
-    gevent \
-    scipy \
-    sklearn \
-    pandas \
-    fastprogress \
-    python-box \
-    tensorboardX \
-    fastai
-
 RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 
-# RUN pip --no-cache-dir install fast-bert
-RUN pip install fast-bert
+COPY requirements.txt ./requirements.txt
+RUN pip install -r requirements.txt
 
 ENV PATH="/opt/ml/code:${PATH}"
-COPY /bert /opt/ml/code
+COPY /t5 /opt/ml/code
 
 WORKDIR /opt/ml/code
-
-RUN cd $WORKDIR
-
-RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased roberta-base distilbert-base-uncased distilroberta-base
-
-RUN rm -rf /opt/ml/input/data/training/cache/
