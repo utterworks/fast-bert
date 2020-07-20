@@ -141,6 +141,7 @@ class BertNERLearner(Learner):
             overwrite_output_dir=True,
             do_train=True,
             do_eval=True,
+            evaluate_during_training=True,
             per_device_train_batch_size=data.batch_size_per_gpu,
             per_device_eval_batch_size=data.batch_size_per_gpu * 2,
             gradient_accumulation_steps=grad_accumulation_steps,
