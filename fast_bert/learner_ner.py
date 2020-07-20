@@ -157,6 +157,7 @@ class BertNERLearner(Learner):
         self.history = {"lr": [], "loss": []}
         self.best_loss = None
         self.state_cacher = None
+        self.trainer = None
 
     def fit(self, epochs, lr, validate=True):
 
