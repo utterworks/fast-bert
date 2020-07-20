@@ -120,7 +120,7 @@ class NerDataset(Dataset):
                     logger=logger,
                 )
                 logger.info(f"Saving features into cached file {cached_features_file}")
-                torch.save(self.features, cached_features_file)
+                # torch.save(self.features, cached_features_file)
 
     def __len__(self):
         return len(self.features)
