@@ -183,13 +183,17 @@ class BertNERLearner(Learner):
         tokenizer = self.data.tokenizer
         tokens = tokenizer.tokenize(tokenizer.decode(tokenizer.encode(text)))
         inputs = tokenizer.encode(text, return_tensors="pt")
+        inputs = inputs.to(self.device)
 
         outputs = self.model(inputs)[0]
+        outputs = outputs.softmax(dim=2)
         predictions = torch.argmax(outputs, dim=2)
 
         return [
-            (token, label_list[prediction])
-            for token, prediction in zip(tokens, predictions[0].tolist())
+            (token, label_list[prediction], output[prediction])
+            for token, output, prediction in zip(
+                tokens, outputs[0].tolist(), predictions[0].tolist()
+            )
         ]
 
     def save_model(self, path=None):
