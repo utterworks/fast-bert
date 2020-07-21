@@ -177,7 +177,7 @@ class BertNERLearner(Learner):
         result = self.get_trainer().evaluate()
         return result
 
-    def predict(self, text):
+    def predict(self, text, group_entities=True):
         label_list = self.data.labels
 
         tokenizer = self.data.tokenizer
@@ -189,12 +189,27 @@ class BertNERLearner(Learner):
         outputs = outputs.softmax(dim=2)
         predictions = torch.argmax(outputs, dim=2)
 
-        return [
+        preds = [
             (token, label_list[prediction], output[prediction])
             for token, output, prediction in zip(
                 tokens, outputs[0].tolist(), predictions[0].tolist()
             )
+        ][1:-1]
+
+        preds = [
+            {
+                "index": index,
+                "word": prediction[0],
+                "entity": prediction[1],
+                "score": prediction[2],
+            }
+            for index, prediction in enumerate(preds)
         ]
+
+        if group_entities is True:
+            return group_entities(preds)
+        else:
+            return preds
 
     def save_model(self, path=None):
 
@@ -251,3 +266,72 @@ class BertNERLearner(Learner):
             "recall": recall_score(out_label_list, preds_list),
             "f1": f1_score(out_label_list, preds_list),
         }
+
+
+def group_sub_entities(entities) -> dict:
+    """
+    Returns grouped sub entities
+    """
+    # Get the first entity in the entity group
+    entity = entities[0]["entity"]
+    scores = np.mean([entity["score"] for entity in entities])
+    tokens = [entity["word"] for entity in entities]
+
+    entity_group = {
+        "entity": entity,
+        "score": np.mean(scores),
+        "word": convert_tokens_to_string(tokens),
+    }
+    return entity_group
+
+
+def convert_tokens_to_string(tokens):
+    sentence = ""
+    for token in tokens:
+        if token.startswith("##"):
+            sentence += token.replace("##", "")
+        else:
+            sentence += " {}".format(token)
+
+    return sentence.strip()
+
+
+def group_entities(entities: List[dict]) -> List[dict]:
+    """
+    Returns grouped entities
+    """
+
+    entity_groups = []
+    entity_group_disagg = []
+
+    if entities:
+        last_idx = entities[-1]["index"]
+
+    for entity in entities:
+        is_last_idx = entity["index"] == last_idx
+        if not entity_group_disagg:
+            entity_group_disagg += [entity]
+            if is_last_idx:
+                entity_groups += [group_sub_entities(entity_group_disagg)]
+            continue
+
+        # If the current entity is similar and adjacent to the previous entity, append it to the disaggregated entity group
+        # The split is meant to account for the "B" and "I" suffixes
+        if (
+            entity["entity"].split("-")[-1]
+            == entity_group_disagg[-1]["entity"].split("-")[-1]
+            and entity["index"] == entity_group_disagg[-1]["index"] + 1
+        ):
+            entity_group_disagg += [entity]
+            # Group the entities at the last entity
+            if is_last_idx:
+                entity_groups += [group_sub_entities(entity_group_disagg)]
+        # If the current entity is different from the previous entity, aggregate the disaggregated entity group
+        else:
+            entity_groups += [group_sub_entities(entity_group_disagg)]
+            entity_group_disagg = [entity]
+            # If it's the last entity, add it to the entity groups
+            if is_last_idx:
+                entity_groups += [group_sub_entities(entity_group_disagg)]
+
+    return entity_groups
