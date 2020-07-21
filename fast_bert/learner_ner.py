@@ -177,7 +177,7 @@ class BertNERLearner(Learner):
         result = self.get_trainer().evaluate()
         return result
 
-    def predict(self, text, group_entities=True):
+    def predict(self, text, group=True):
         label_list = self.data.labels
 
         tokenizer = self.data.tokenizer
@@ -206,7 +206,7 @@ class BertNERLearner(Learner):
             for index, prediction in enumerate(preds)
         ]
 
-        if group_entities is True:
+        if group is True:
             return group_entities(preds)
         else:
             return preds
