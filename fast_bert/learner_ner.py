@@ -177,7 +177,9 @@ class BertNERLearner(Learner):
         result = self.get_trainer().evaluate()
         return result
 
-    def predict(self, text, group=True):
+    def predict(self, text, group=True, exclude_entities=["O"]):
+        if exclude_entities is None:
+            exclude_entities = []
         label_list = self.data.labels
 
         tokenizer = self.data.tokenizer
@@ -185,7 +187,9 @@ class BertNERLearner(Learner):
         inputs = tokenizer.encode(text, return_tensors="pt")
         inputs = inputs.to(self.device)
 
-        outputs = self.model(inputs)[0]
+        model = self.model.to(self.device)
+
+        outputs = model(inputs)[0]
         outputs = outputs.softmax(dim=2)
         predictions = torch.argmax(outputs, dim=2)
 
@@ -207,9 +211,9 @@ class BertNERLearner(Learner):
         ]
 
         if group is True:
-            return group_entities(preds)
-        else:
-            return preds
+            preds = group_entities(preds)
+
+        return [pred for pred in preds if pred["entity"] not in exclude_entities]
 
     def save_model(self, path=None):
 
