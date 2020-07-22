@@ -1,4 +1,5 @@
 import pandas as pd
+import json
 import logging
 import os
 import torch
@@ -11,6 +12,7 @@ import pickle
 from filelock import FileLock
 import re
 import shutil
+from sklearn.model_selection import train_test_split
 
 from torch.utils.data import (
     Dataset,
@@ -167,6 +169,65 @@ def read_examples_from_file(
 
 
 class BertNERDataBunch(object):
+    @classmethod
+    def from_jsonl(
+        cls,
+        data_dir,
+        file_name,
+        tokenizer,
+        batch_size_per_gpu=16,
+        max_seq_length=512,
+        multi_gpu=True,
+        backend="nccl",
+        model_type="bert",
+        logger=logging.getLogger(),
+        clear_cache=False,
+        no_cache=False,
+        use_fast_tokenizer=True,
+        custom_sampler=None,
+    ):
+        DATA_PATH = Path(data_dir)
+
+        labels = []
+
+        with open(DATA_PATH / file_name, "r") as f:
+            lines = f.readlines()
+            label_lines = [json.loads(line) for line in lines]
+            for line in label_lines:
+                for label in line["labels"]:
+                    labels.append(label[2])
+
+        train, val = train_test_split(lines, train_size=0.8)
+
+        modified_train = convert_data(train)
+        modified_val = convert_data(val)
+
+        modified_train = flatten_all(modified_train)
+        json_to_text(modified_train, str(DATA_PATH / "train.txt"))
+
+        modified_val = flatten_all(modified_val)
+        json_to_text(modified_val, str(DATA_PATH / "val.txt"))
+
+        with open(DATA_PATH / "labels.txt", "w") as f:
+            for label in set(labels):
+                f.write("B-{}\n".format(label))
+                f.write("I-{}\n".format(label))
+
+        return BertNERDataBunch(
+            data_dir,
+            tokenizer=tokenizer,
+            batch_size_per_gpu=batch_size_per_gpu,
+            max_seq_length=max_seq_length,
+            multi_gpu=multi_gpu,
+            backend=backend,
+            model_type=model_type,
+            logger=logger,
+            clear_cache=clear_cache,
+            no_cache=no_cache,
+            use_fast_tokenizer=use_fast_tokenizer,
+            custom_sampler=custom_sampler,
+        )
+
     def __init__(
         self,
         data_dir,
@@ -413,4 +474,72 @@ def get_labels(path: str) -> List[str]:
             "B-LOC",
             "I-LOC",
         ]
+
+
+def convert_data(lines, label_name="labels"):
+    modified_lines = []
+    for line in lines:
+        line = json.loads(line)
+        if "labels" in line:
+            line[label_name] = line.pop("labels")
+        else:
+            line[label_name] = []
+            continue
+
+        tmp_ents = []
+        for e in line[label_name]:
+            tmp_ents.append((e[0], e[1], e[2]))
+            # tmp_ents.append({"start": e[0], "end": e[1], "label": e[2]})
+
+            line[label_name] = tmp_ents
+
+        if len(line["text"]) > 3:
+            modified_lines.append(
+                json.dumps({label_name: line[label_name], "text": line["text"]})
+            )
+
+    return modified_lines
+
+
+def flatten(data):
+    data = json.loads(data)
+    output_text = []
+    beg_index = 0
+    end_index = 0
+
+    text = data["text"]
+    all_labels = sorted(data["labels"])
+
+    for ind in range(len(all_labels)):
+        next_label = all_labels[ind]
+        output_text += [
+            (label_word, "O")
+            for label_word in text[end_index : next_label[0]].strip().split()
+        ]
+
+        label = next_label
+        beg_index = label[0]
+        end_index = label[1]
+        label_text = text[beg_index:end_index]
+        output_text += [
+            (label_word, "B-" + label[2]) if not i else (label_word, "I-" + label[2])
+            for i, label_word in enumerate(label_text.split(" "))
+        ]
+
+    output_text += [
+        (label_word, "O") for label_word in text[end_index:].strip().split()
+    ]
+    return output_text
+
+
+def flatten_all(datas):
+    return [flatten(data) for data in datas]
+
+
+def json_to_text(jsons, output_filename):
+    with open(output_filename, "w") as f:
+        for each_json in jsons:
+            for line in each_json:
+                f.writelines(" ".join(line) + "\n")
+            f.writelines("\n")
 
