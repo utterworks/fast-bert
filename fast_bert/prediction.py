@@ -122,7 +122,6 @@ class BertNERPredictor(object):
         learner = BertNERLearner.from_pretrained_model(
             databunch,
             self.model_path,
-            metrics=[],
             device=device,
             logger=None,
             output_dir=None,
