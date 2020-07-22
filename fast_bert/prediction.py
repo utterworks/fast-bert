@@ -109,7 +109,6 @@ class BertNERPredictor(object):
 
         databunch = BertNERDataBunch(
             self.label_path,
-            self.label_path,
             self.tokenizer,
             train_file=None,
             val_file=None,
