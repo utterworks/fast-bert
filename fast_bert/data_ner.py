@@ -84,13 +84,13 @@ class NerDataset(Dataset):
         mode: Split = Split.train,
         logger=logging.getLogger(__name__),
     ):
-        # Load data features from cache or dataset file
-        cached_features_file = os.path.join(
-            data_dir,
-            "cached_{}_{}_{}".format(
-                mode.value, tokenizer.__class__.__name__, str(max_seq_length)
-            ),
-        )
+        # # Load data features from cache or dataset file
+        # cached_features_file = os.path.join(
+        #     data_dir,
+        #     "cached_{}_{}_{}".format(
+        #         mode.value, tokenizer.__class__.__name__, str(max_seq_length)
+        #     ),
+        # )
 
         # Make sure only the first process in distributed training processes the dataset,
         # and the others will use the cache.
@@ -542,4 +542,3 @@ def json_to_text(jsons, output_filename):
             for line in each_json:
                 f.writelines(" ".join(line) + "\n")
             f.writelines("\n")
-
