@@ -1,7 +1,9 @@
 import os
 import torch
 from .data_cls import BertDataBunch
+from .data_ner import BertNERDataBunch
 from .learner_cls import BertLearner
+from .learner_ner import BertNERLearner
 
 from transformers import AutoTokenizer
 
@@ -75,4 +77,72 @@ class BertClassificationPredictor(object):
 
     def predict(self, text):
         predictions = self.predict_batch([text])[0]
+        return predictions
+
+
+class BertNERPredictor(object):
+    def __init__(
+        self,
+        model_path,
+        label_path,
+        model_type="bert",
+        use_fast_tokenizer=True,
+        do_lower_case=True,
+    ):
+        self.model_path = model_path
+        self.label_path = label_path
+        self.model_type = model_type
+        self.do_lower_case = do_lower_case
+
+        # Use auto-tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_path, use_fast=use_fast_tokenizer
+        )
+
+        self.learner = self.get_learner()
+
+    def get_learner(self):
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
+
+        databunch = BertNERDataBunch(
+            self.label_path,
+            self.tokenizer,
+            train_file=None,
+            val_file=None,
+            batch_size_per_gpu=32,
+            max_seq_length=512,
+            multi_gpu=False,
+            model_type=self.model_type,
+            no_cache=True,
+        )
+
+        learner = BertNERLearner.from_pretrained_model(
+            databunch,
+            self.model_path,
+            device=device,
+            logger=None,
+            output_dir=None,
+            warmup_steps=0,
+            multi_gpu=False,
+            is_fp16=False,
+            logging_steps=0,
+        )
+
+        return learner
+
+    def predict_batch(self, texts, group=True, exclude_entities=["O"]):
+        predictions = []
+
+        for text in texts:
+            pred = self.predict(text, group=group, exclude_entities=exclude_entities)
+            if pred:
+                predictions.append({"text": text, "results": pred})
+
+    def predict(self, text, group=True, exclude_entities=["O"]):
+        predictions = self.learner.predict(
+            text, group=group, exclude_entities=exclude_entities
+        )
         return predictions
