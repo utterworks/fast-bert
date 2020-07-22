@@ -136,6 +136,8 @@ class BertNERLearner(Learner):
         if self.output_dir:
             tensorboard_dir = self.output_dir / "tensorboard"
             tensorboard_dir.mkdir(exist_ok=True)
+        else:
+            tensorboard_dir = None
 
         self.training_arguments = TrainingArguments(
             str(output_dir),
