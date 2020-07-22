@@ -133,8 +133,9 @@ class BertNERLearner(Learner):
             logging_steps,
         )
 
-        tensorboard_dir = self.output_dir / "tensorboard"
-        tensorboard_dir.mkdir(exist_ok=True)
+        if self.output_dir:
+            tensorboard_dir = self.output_dir / "tensorboard"
+            tensorboard_dir.mkdir(exist_ok=True)
 
         self.training_arguments = TrainingArguments(
             str(output_dir),
