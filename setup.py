@@ -9,7 +9,7 @@ with open("requirements.txt") as f:
 
 setup(
     name="fast_bert",
-    version="1.8.1",
+    version="1.9.0",
     description="AI Library using BERT",
     author="Kaushal Trivedi",
     author_email="kaushaltrivedi@me.com",

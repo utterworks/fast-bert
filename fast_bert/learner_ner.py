@@ -216,7 +216,17 @@ class BertNERLearner(Learner):
         if group is True:
             preds = group_entities(preds)
 
-        return [pred for pred in preds if pred["entity"] not in exclude_entities]
+        out_preds = []
+        for pred in preds:
+            if pred["entity"] not in exclude_entities:
+                try:
+                    pred["entity"] = pred["entity"].split("-")[1]
+                except Exception:
+                    pass
+
+                out_preds.append(pred)
+
+        return out_preds
 
     def save_model(self, path=None):
 
