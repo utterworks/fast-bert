@@ -172,6 +172,9 @@ def train():
 
         learner.fit(int(hyperparameters["epochs"]), float(hyperparameters["lr"]))
 
+        # Run validation
+        logger.info(learner.validate())
+
         # save model and tokenizer artefacts
         learner.save_model()
 
