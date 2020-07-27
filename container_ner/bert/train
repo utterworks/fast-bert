@@ -90,6 +90,14 @@ def train():
         )
         training_config["jsonl_file"] = training_config.get("jsonl_file", "data.jsonl")
 
+        training_config["random_state"] = (
+            int(training_config.get("random_state"))
+            if training_config.get("random_state")
+            else None
+        )
+
+        training_config["train_size"] = float(training_config.get("train_size", 0.8))
+
         # Logger
         # logfile = str(LOG_PATH/'log-{}-{}.txt'.format(run_start_time, training_config["run_text"]))
         logging.basicConfig(
@@ -150,6 +158,8 @@ def train():
             model_type=training_config["model_type"],
             logger=logger,
             use_fast_tokenizer=training_config["use_fast_tokenizer"],
+            train_size=training_config["train_size"],
+            random_state=training_config["random_state"],
         )
 
         logger.info("databunch labels: {}".format(len(databunch.labels)))

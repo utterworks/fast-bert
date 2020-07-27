@@ -185,6 +185,8 @@ class BertNERDataBunch(object):
         no_cache=False,
         use_fast_tokenizer=True,
         custom_sampler=None,
+        train_size=0.8,
+        random_state=None,
     ):
         DATA_PATH = Path(data_dir)
 
@@ -197,7 +199,9 @@ class BertNERDataBunch(object):
                 for label in line["labels"]:
                     labels.append(label[2])
 
-        train, val = train_test_split(lines, train_size=0.8)
+        train, val = train_test_split(
+            lines, train_size=train_size, random_state=random_state
+        )
 
         modified_train = convert_data(train)
         modified_val = convert_data(val)
