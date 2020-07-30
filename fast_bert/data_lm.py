@@ -40,12 +40,12 @@ from transformers import (
     DistilBertConfig,
     DistilBertForSequenceClassification,
     DistilBertTokenizer,
-    ElectraConfig,
-    ElectraForSequenceClassification,
-    ElectraTokenizer,
     CamembertConfig,
     CamembertForSequenceClassification,
-    CamembertTokenizer
+    CamembertTokenizer,
+    ElectraConfig,
+    ElectraForSequenceClassification,
+    ElectraTokenizer
 )
 
 MODEL_CLASSES = {
@@ -54,8 +54,8 @@ MODEL_CLASSES = {
     "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
     "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
     "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
-    "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
-    "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
+    "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
+    "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer)
 }
 
 # Create text corpus suitable for language model training
@@ -76,7 +76,7 @@ def create_corpus(text_list, target_path, logger=None):
             text = rm_useless_spaces(text)
             text = text.strip()
 
-            f.write(text+" ")
+            f.write(text)
 
 
 #            text_lines = [re.sub(r"\n(\s)*","",str(sent)) for i, sent in enumerate(nlp(str(text)).sents)]
