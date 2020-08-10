@@ -240,6 +240,7 @@ def train():
             seed=training_config["random_state"],
             num_train_epochs=int(hyperparameters["epochs"]),
             learning_rate=float(hyperparameters["lr"]),
+            save_steps=0,
         )
 
         # Logger
