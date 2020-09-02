@@ -171,6 +171,7 @@ def train():
             multi_label=training_config["multi_label"],
             model_type=training_config["model_type"],
             logger=logger,
+            no_cache=True,
         )
 
         metrics = []
