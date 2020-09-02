@@ -116,7 +116,16 @@ def train():
 
         # Define pretrained model path
         PRETRAINED_PATH = Path(pretrained_model_path) / training_config["model_name"]
-        logger.info("model path used {}".format(PRETRAINED_PATH))
+        if PRETRAINED_PATH.is_dir():
+            logger.info("model path used {}".format(PRETRAINED_PATH))
+            model_name_path = str(PRETRAINED_PATH)
+        else:
+            model_name_path = training_config["model_name"]
+            logger.info(
+                "model {} is not preloaded. Will try to download.".format(
+                    model_name_path
+                )
+            )
 
         finetuned_model_name = training_config.get("finetuned_model", None)
         if finetuned_model_name is not None:
@@ -129,7 +138,7 @@ def train():
             finetuned_model = None
 
         # use auto-tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(str(PRETRAINED_PATH), use_fast=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_name_path, use_fast=True)
 
         device = torch.device("cuda")
         if torch.cuda.device_count() > 1:
@@ -177,7 +186,7 @@ def train():
         # Initialise the learner
         learner = BertLearner.from_pretrained_model(
             databunch,
-            PRETRAINED_PATH,
+            model_name_path,
             metrics=metrics,
             device=device,
             logger=logger,
