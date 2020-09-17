@@ -259,7 +259,8 @@ predictor = BertClassificationPredictor(
 				label_path=LABEL_PATH, # location for labels.csv file
 				multi_label=False,
 				model_type='xlnet',
-				do_lower_case=False)
+				do_lower_case=False,
+				device=None) # set custom torch.device, defaults to cuda if available
 
 # Single prediction
 single_prediction = predictor.predict("just get me result for this text")
