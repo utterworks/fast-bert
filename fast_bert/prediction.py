@@ -92,6 +92,7 @@ class BertNERPredictor(object):
     ):
         if device is None:
             device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
         self.model_path = model_path
         self.label_path = label_path
         self.model_type = model_type
