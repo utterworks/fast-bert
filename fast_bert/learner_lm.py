@@ -19,15 +19,27 @@ MODEL_CLASSES = {
     'distilbert': (DistilBertConfig, DistilBertForMaskedLM),
     'camembert-base': (CamembertConfig, CamembertForMaskedLM),
     'electra': (ElectraConfig, ElectraForMaskedLM)
-}
+
+
 
 class BertLMLearner(Learner):
-
     @staticmethod
-    def from_pretrained_model(dataBunch, pretrained_path, output_dir, metrics, device, logger,
-                              multi_gpu=True, is_fp16=True, warmup_steps=0, fp16_opt_level='O1',
-                              grad_accumulation_steps=1, max_grad_norm=1.0, adam_epsilon=1e-8,
-                              logging_steps=100):
+    def from_pretrained_model(
+        dataBunch,
+        pretrained_path,
+        output_dir,
+        metrics,
+        device,
+        logger,
+        multi_gpu=True,
+        is_fp16=True,
+        warmup_steps=0,
+        fp16_opt_level="O1",
+        grad_accumulation_steps=1,
+        max_grad_norm=1.0,
+        adam_epsilon=1e-8,
+        logging_steps=100,
+    ):
 
         model_state_dict = None
         model_type = dataBunch.model_type
@@ -39,14 +51,43 @@ class BertLMLearner(Learner):
 
         model.to(device)
 
-        return BertLMLearner(dataBunch, model, pretrained_path, output_dir, metrics, device, logger,
-                           multi_gpu, is_fp16, warmup_steps, fp16_opt_level, grad_accumulation_steps,
-                           max_grad_norm, adam_epsilon, logging_steps)
+        return BertLMLearner(
+            dataBunch,
+            model,
+            pretrained_path,
+            output_dir,
+            metrics,
+            device,
+            logger,
+            multi_gpu,
+            is_fp16,
+            warmup_steps,
+            fp16_opt_level,
+            grad_accumulation_steps,
+            max_grad_norm,
+            adam_epsilon,
+            logging_steps,
+        )
 
     # Learner initialiser
-    def __init__(self, data: BertLMDataBunch, model: torch.nn.Module, pretrained_model_path, output_dir, metrics, device,logger,
-                 multi_gpu=True, is_fp16=True, warmup_steps=0, fp16_opt_level='O1',
-                 grad_accumulation_steps=1, max_grad_norm=1.0, adam_epsilon=1e-8, logging_steps=100):
+    def __init__(
+        self,
+        data: BertLMDataBunch,
+        model: torch.nn.Module,
+        pretrained_model_path,
+        output_dir,
+        metrics,
+        device,
+        logger,
+        multi_gpu=True,
+        is_fp16=True,
+        warmup_steps=0,
+        fp16_opt_level="O1",
+        grad_accumulation_steps=1,
+        max_grad_norm=1.0,
+        adam_epsilon=1e-8,
+        logging_steps=100,
+    ):
 
         if isinstance(output_dir, str):
             output_dir = Path(output_dir)
@@ -76,11 +117,17 @@ class BertLMLearner(Learner):
         if self.multi_gpu:
             self.n_gpu = torch.cuda.device_count()
 
-
     ### Train the model ###
-    def fit(self, epochs, lr, validate=True, schedule_type="warmup_cosine", optimizer_type='lamb'):
+    def fit(
+        self,
+        epochs,
+        lr,
+        validate=True,
+        schedule_type="warmup_cosine",
+        optimizer_type="lamb",
+    ):
 
-        tensorboard_dir = self.output_dir/'tensorboard'
+        tensorboard_dir = self.output_dir / "tensorboard"
         tensorboard_dir.mkdir(exist_ok=True)
 
         # Train the model
@@ -89,7 +136,10 @@ class BertLMLearner(Learner):
         train_dataloader = self.data.train_dl
         if self.max_steps > 0:
             t_total = self.max_steps
-            self.epochs = self.max_steps // len(train_dataloader) // self.grad_accumulation_steps + 1
+            self.epochs = (
+                self.max_steps // len(train_dataloader) // self.grad_accumulation_steps
+                + 1
+            )
         else:
             t_total = len(train_dataloader) // self.grad_accumulation_steps * epochs
 
@@ -97,33 +147,41 @@ class BertLMLearner(Learner):
         optimizer = self.get_optimizer(lr, optimizer_type=optimizer_type)
 
         # get the base model if its already wrapped around DataParallel
-        if hasattr(self.model, 'module'):
+        if hasattr(self.model, "module"):
             self.model = self.model.module
 
         if self.is_fp16:
             try:
                 from apex import amp
             except ImportError:
-                raise ImportError('Please install apex to use fp16 training')
-            self.model, optimizer = amp.initialize(self.model, optimizer, opt_level=self.fp16_opt_level)
+                raise ImportError("Please install apex to use fp16 training")
+            self.model, optimizer = amp.initialize(
+                self.model, optimizer, opt_level=self.fp16_opt_level
+            )
 
         # Get scheduler
-        scheduler = self.get_scheduler(optimizer, t_total=t_total, schedule_type=schedule_type)
+        scheduler = self.get_scheduler(
+            optimizer, t_total=t_total, schedule_type=schedule_type
+        )
 
         # Parallelize the model architecture
-        if self.multi_gpu == True:
+        if self.multi_gpu is True:
             self.model = torch.nn.DataParallel(self.model)
 
         # Start Training
         self.logger.info("***** Running training *****")
         self.logger.info("  Num examples = %d", len(train_dataloader.dataset))
         self.logger.info("  Num Epochs = %d", epochs)
-        self.logger.info("  Total train batch size (w. parallel, distributed & accumulation) = %d",
-                       self.data.train_batch_size * self.grad_accumulation_steps)
-        self.logger.info("  Gradient Accumulation steps = %d", self.grad_accumulation_steps)
+        self.logger.info(
+            "  Total train batch size (w. parallel, distributed & accumulation) = %d",
+            self.data.train_batch_size * self.grad_accumulation_steps,
+        )
+        self.logger.info(
+            "  Gradient Accumulation steps = %d", self.grad_accumulation_steps
+        )
         self.logger.info("  Total optimization steps = %d", t_total)
 
-        global_step =  0
+        global_step = 0
         epoch_step = 0
         tr_loss, logging_loss, epoch_loss = 0.0, 0.0, 0.0
         self.model.zero_grad()
@@ -135,7 +193,7 @@ class BertLMLearner(Learner):
             for step, batch in enumerate(progress_bar(train_dataloader, parent=pbar)):
 
                 inputs, labels = self.data.mask_tokens(batch)
-                cpu_device = torch.device('cpu')
+                cpu_device = torch.device("cpu")
 
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
@@ -143,20 +201,28 @@ class BertLMLearner(Learner):
                 self.model.train()
 
                 outputs = self.model(inputs, masked_lm_labels=labels)
-                loss = outputs[0]  # model outputs are always tuple in pytorch-transformers (see doc)
+                loss = outputs[
+                    0
+                ]  # model outputs are always tuple in pytorch-transformers (see doc)
 
                 if self.n_gpu > 1:
-                    loss = loss.mean() # mean() to average on multi-gpu parallel training
+                    loss = (
+                        loss.mean()
+                    )  # mean() to average on multi-gpu parallel training
                 if self.grad_accumulation_steps > 1:
                     loss = loss / self.grad_accumulation_steps
 
                 if self.is_fp16:
                     with amp.scale_loss(loss, optimizer) as scaled_loss:
                         scaled_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), self.max_grad_norm)
+                    torch.nn.utils.clip_grad_norm_(
+                        amp.master_params(optimizer), self.max_grad_norm
+                    )
                 else:
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), self.max_grad_norm
+                    )
 
                 tr_loss += loss.item()
                 epoch_loss += loss.item()
@@ -179,29 +245,53 @@ class BertLMLearner(Learner):
                             # evaluate model
                             results = self.validate()
                             for key, value in results.items():
-                                tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
-                                self.logger.info("eval_{} after step {}: {}: ".format(key, global_step, value))
+                                tb_writer.add_scalar(
+                                    "eval_{}".format(key), value, global_step
+                                )
+                                self.logger.info(
+                                    "eval_{} after step {}: {}: ".format(
+                                        key, global_step, value
+                                    )
+                                )
 
                         # Log metrics
-                        self.logger.info("lr after step {}: {}".format(global_step, scheduler.get_lr()[0]))
-                        self.logger.info("train_loss after step {}: {}".format(global_step, (tr_loss - logging_loss)/self.logging_steps))
-                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar('loss', (tr_loss - logging_loss)/self.logging_steps, global_step)
-
+                        self.logger.info(
+                            "lr after step {}: {}".format(
+                                global_step, scheduler.get_lr()[0]
+                            )
+                        )
+                        self.logger.info(
+                            "train_loss after step {}: {}".format(
+                                global_step,
+                                (tr_loss - logging_loss) / self.logging_steps,
+                            )
+                        )
+                        tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar(
+                            "loss",
+                            (tr_loss - logging_loss) / self.logging_steps,
+                            global_step,
+                        )
 
                         logging_loss = tr_loss
-
-
 
             # Evaluate the model after every epoch
             if validate:
                 results = self.validate()
                 for key, value in results.items():
-                    self.logger.info("eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value))
+                    self.logger.info(
+                        "eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value)
+                    )
 
             # Log metrics
-            self.logger.info("lr after epoch {}: {}".format((epoch + 1), scheduler.get_lr()[0]))
-            self.logger.info("train_loss after epoch {}: {}".format((epoch + 1), epoch_loss/epoch_step))
+            self.logger.info(
+                "lr after epoch {}: {}".format((epoch + 1), scheduler.get_lr()[0])
+            )
+            self.logger.info(
+                "train_loss after epoch {}: {}".format(
+                    (epoch + 1), epoch_loss / epoch_step
+                )
+            )
             self.logger.info("\n")
 
         tb_writer.close()
@@ -217,14 +307,13 @@ class BertLMLearner(Learner):
         all_logits = None
         all_labels = None
 
-
         eval_loss, eval_accuracy = 0, 0
         nb_eval_steps = 0
 
         preds = None
         out_label_ids = None
 
-        validation_scores = {metric['name']: 0. for metric in self.metrics}
+        validation_scores = {metric["name"]: 0.0 for metric in self.metrics}
 
         for step, batch in enumerate(progress_bar(self.data.val_dl)):
             self.model.eval()
@@ -235,18 +324,16 @@ class BertLMLearner(Learner):
                 tmp_eval_loss = outputs[0]
                 eval_loss += tmp_eval_loss.mean().item()
 
-                cpu_device = torch.device('cpu')
+                cpu_device = torch.device("cpu")
                 batch.to(cpu_device)
                 torch.cuda.empty_cache()
 
             nb_eval_steps += 1
 
-
         eval_loss = eval_loss / nb_eval_steps
         perplexity = torch.exp(torch.tensor(eval_loss))
 
-        results = {'loss': eval_loss,
-                   'perplexity': float(perplexity)}
+        results = {"loss": eval_loss, "perplexity": float(perplexity)}
 
         results.update(validation_scores)
 
@@ -255,13 +342,15 @@ class BertLMLearner(Learner):
     def save_model(self, path=None):
 
         if not path:
-            path = self.output_dir/'model_out'
+            path = self.output_dir / "model_out"
 
         path.mkdir(exist_ok=True)
 
         torch.cuda.empty_cache()
         # Save a trained model
-        model_to_save = self.model.module if hasattr(self.model, 'module') else self.model  # Only save the model it-self
+        model_to_save = (
+            self.model.module if hasattr(self.model, "module") else self.model
+        )  # Only save the model it-self
         model_to_save.save_pretrained(path)
 
         # save the tokenizer

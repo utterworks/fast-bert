@@ -22,12 +22,17 @@ class BertClassificationPredictor(object):
         model_type="bert",
         use_fast_tokenizer=True,
         do_lower_case=True,
+        device=None,
     ):
+        if device is None:
+            device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
         self.model_path = model_path
         self.label_path = label_path
         self.multi_label = multi_label
         self.model_type = model_type
         self.do_lower_case = do_lower_case
+        self.device = device
 
         # Use auto-tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -37,11 +42,6 @@ class BertClassificationPredictor(object):
         self.learner = self.get_learner()
 
     def get_learner(self):
-        if torch.cuda.is_available():
-            device = torch.device("cuda")
-        else:
-            device = torch.device("cpu")
-
         databunch = BertDataBunch(
             self.label_path,
             self.label_path,
@@ -60,7 +60,7 @@ class BertClassificationPredictor(object):
             databunch,
             self.model_path,
             metrics=[],
-            device=device,
+            device=self.device,
             logger=None,
             output_dir=None,
             warmup_steps=0,
@@ -88,11 +88,16 @@ class BertNERPredictor(object):
         model_type="bert",
         use_fast_tokenizer=True,
         do_lower_case=True,
+        device=None,
     ):
+        if device is None:
+            device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
         self.model_path = model_path
         self.label_path = label_path
         self.model_type = model_type
         self.do_lower_case = do_lower_case
+        self.device = device
 
         # Use auto-tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -102,11 +107,6 @@ class BertNERPredictor(object):
         self.learner = self.get_learner()
 
     def get_learner(self):
-        if torch.cuda.is_available():
-            device = torch.device("cuda")
-        else:
-            device = torch.device("cpu")
-
         databunch = BertNERDataBunch(
             self.label_path,
             self.tokenizer,
@@ -122,7 +122,7 @@ class BertNERPredictor(object):
         learner = BertNERLearner.from_pretrained_model(
             databunch,
             self.model_path,
-            device=device,
+            device=self.device,
             logger=None,
             output_dir=None,
             warmup_steps=0,

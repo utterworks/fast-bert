@@ -428,7 +428,7 @@ class BertDataBunch(object):
             cached_features_file = os.path.join(
                 self.cache_dir,
                 "cached_{}_{}_{}_{}_{}".format(
-                    self.model_type,
+                    self.model_type.replace("/", "-"),
                     "train",
                     "multi_label" if self.multi_label else "multi_class",
                     str(self.max_seq_length),
@@ -462,7 +462,7 @@ class BertDataBunch(object):
             cached_features_file = os.path.join(
                 self.cache_dir,
                 "cached_{}_{}_{}_{}_{}".format(
-                    self.model_type,
+                    self.model_type.replace("/", "-"),
                     "dev",
                     "multi_label" if self.multi_label else "multi_class",
                     str(self.max_seq_length),
@@ -545,7 +545,7 @@ class BertDataBunch(object):
         cached_features_file = os.path.join(
             self.cache_dir,
             "cached_{}_{}_{}_{}_{}".format(
-                self.model_type,
+                self.model_type.replace("/", "-"),
                 set_type,
                 "multi_label" if self.multi_label else "multi_class",
                 str(self.max_seq_length),
