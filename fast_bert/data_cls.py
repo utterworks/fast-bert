@@ -376,6 +376,8 @@ class BertDataBunch(object):
         clear_cache=False,
         no_cache=False,
         custom_sampler=None,
+        pos_weight=None,
+        weight=None
     ):
 
         # just in case someone passes string instead of Path
@@ -406,6 +408,8 @@ class BertDataBunch(object):
         self.model_type = model_type
         self.output_mode = "classification"
         self.custom_sampler = custom_sampler
+        self.pos_weight = pos_weight
+        self.weight = weight
         if logger is None:
             logger = logging.getLogger()
         self.logger = logger

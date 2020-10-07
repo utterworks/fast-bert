@@ -142,6 +142,9 @@ def load_model(dataBunch, pretrained_path, finetuned_wgts_path, device, multi_la
 
     if multi_label is True:
         config_class, model_class, _ = MODEL_CLASSES[model_type]
+        
+        model_class[1].pos_weight = pos_weight
+        model_class[1].weight = weight
 
         config = config_class.from_pretrained(
             str(pretrained_path), num_labels=len(dataBunch.labels)
@@ -182,6 +185,8 @@ class BertLearner(Learner):
         adam_epsilon=1e-8,
         logging_steps=100,
         freeze_transformer_layers=False,
+        pos_weight=None,
+        weight=None
     ):
         if is_fp16 and (IS_AMP_AVAILABLE is False):
             logger.debug("Apex not installed. switching off FP16 training")
