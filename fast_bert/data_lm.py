@@ -8,6 +8,8 @@ import torch
 from pathlib import Path
 import pickle
 import shutil
+import itertools
+import more_itertools
 
 from sklearn.model_selection import train_test_split
 
@@ -72,7 +74,7 @@ def create_corpus(text_list, target_path, logger=None):
             text = rm_useless_spaces(text)
             text = text.strip()
 
-            f.write(text)
+            f.write(text+"\n")
 
 
 #            text_lines = [re.sub(r"\n(\s)*","",str(sent)) for i, sent in enumerate(nlp(str(text)).sents)]
@@ -129,19 +131,12 @@ class TextDataset(Dataset):
             logger.info("Creating features from dataset file %s", file_path)
 
             self.examples = []
-            with open(file_path, encoding="utf-8") as f:
-                text = f.read()
-
-            tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
-
-            while len(tokenized_text) >= block_size:  # Truncate in block of block_size
-
-                self.examples.append(
-                    tokenizer.build_inputs_with_special_tokens(
-                        tokenized_text[:block_size]
-                    )
-                )
-                tokenized_text = tokenized_text[block_size:]
+            text = (line.strip() for line in open(file_path, encoding="utf-8"))
+            text = progress_bar(list(text))
+            text = map(lambda x:tokenizer.convert_tokens_to_ids(tokenizer.tokenize(x)), text)
+            text = itertools.chain.from_iterable(text)
+            text = more_itertools.chunked(text, block_size)
+            self.examples = list(text)[:-1]
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
             # If your dataset is small, first you should loook for a bigger one :-) and second you
             # can change this behavior by adding (model specific) padding.
