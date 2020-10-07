@@ -44,7 +44,10 @@ from transformers import (
     DistilBertTokenizer,
     CamembertConfig,
     CamembertForSequenceClassification,
-    CamembertTokenizer
+    CamembertTokenizer,
+    ElectraConfig,
+    ElectraForSequenceClassification,
+    ElectraTokenizer
 )
 
 MODEL_CLASSES = {
@@ -53,7 +56,8 @@ MODEL_CLASSES = {
     "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
     "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
     "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
-    "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
+    "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
+    "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer)
 }
 
 # Create text corpus suitable for language model training
@@ -343,4 +347,3 @@ class BertLMDataBunch(object):
         tmp_path.mkdir(exist_ok=True)
         with open(str(tmp_path / filename), "wb") as f:
             pickle.dump(self, f)
-
