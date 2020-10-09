@@ -47,7 +47,7 @@ from transformers import (
     CamembertTokenizer,
     ElectraConfig,
     ElectraForSequenceClassification,
-    ElectraTokenizer
+    ElectraTokenizer,
 )
 
 MODEL_CLASSES = {
@@ -55,9 +55,17 @@ MODEL_CLASSES = {
     "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
     "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
     "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
-    "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
-    "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer)
+    "distilbert": (
+        DistilBertConfig,
+        DistilBertForSequenceClassification,
+        DistilBertTokenizer,
+    ),
+    "camembert-base": (
+        CamembertConfig,
+        CamembertForSequenceClassification,
+        CamembertTokenizer,
+    ),
+    "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
 }
 
 # Create text corpus suitable for language model training
@@ -65,7 +73,7 @@ MODEL_CLASSES = {
 
 def create_corpus(text_list, target_path, logger=None):
 
-#     nlp = spacy.load("en_core_web_sm", disable=["tagger", "ner", "textcat"])
+    #     nlp = spacy.load("en_core_web_sm", disable=["tagger", "ner", "textcat"])
 
     with open(target_path, "w") as f:
         #  Split sentences for each document
@@ -78,7 +86,7 @@ def create_corpus(text_list, target_path, logger=None):
             text = rm_useless_spaces(text)
             text = text.strip()
 
-            f.write(text+"\n")
+            f.write(text + "\n")
 
 
 #            text_lines = [re.sub(r"\n(\s)*","",str(sent)) for i, sent in enumerate(nlp(str(text)).sents)]
@@ -137,7 +145,9 @@ class TextDataset(Dataset):
             self.examples = []
             text = (line.strip() for line in open(file_path, encoding="utf-8"))
             text = progress_bar(list(text))
-            text = map(lambda x:tokenizer.convert_tokens_to_ids(tokenizer.tokenize(x)), text)
+            text = map(
+                lambda x: tokenizer.convert_tokens_to_ids(tokenizer.tokenize(x)), text
+            )
             text = itertools.chain.from_iterable(text)
             text = more_itertools.chunked(text, block_size)
             self.examples = list(text)[:-1]
@@ -254,7 +264,7 @@ class BertLMDataBunch(object):
 
         if train_file:
             # Train DataLoader
-            train_examples = None
+            # train_examples = None
             cached_features_file = os.path.join(
                 self.cache_dir,
                 "cached_{}_{}_{}".format(
@@ -280,7 +290,7 @@ class BertLMDataBunch(object):
 
         if val_file:
             # Val DataLoader
-            val_examples = None
+            # val_examples = None
             cached_features_file = os.path.join(
                 self.cache_dir,
                 "cached_{}_{}_{}".format(

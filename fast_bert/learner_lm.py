@@ -10,16 +10,28 @@ from .learner_util import Learner
 
 from .data_lm import BertLMDataBunch
 
-from transformers import (WEIGHTS_NAME, BertConfig, BertForMaskedLM, RobertaConfig, RobertaForMaskedLM, DistilBertConfig, DistilBertForMaskedLM, CamembertConfig, CamembertForMaskedLM, ElectraConfig, ElectraForMaskedLM)
+from transformers import (
+    WEIGHTS_NAME,
+    BertConfig,
+    BertForMaskedLM,
+    RobertaConfig,
+    RobertaForMaskedLM,
+    DistilBertConfig,
+    DistilBertForMaskedLM,
+    CamembertConfig,
+    CamembertForMaskedLM,
+    ElectraConfig,
+    ElectraForMaskedLM,
+)
 
 
 MODEL_CLASSES = {
-    'bert': (BertConfig, BertForMaskedLM),
-    'roberta': (RobertaConfig, RobertaForMaskedLM),
-    'distilbert': (DistilBertConfig, DistilBertForMaskedLM),
-    'camembert-base': (CamembertConfig, CamembertForMaskedLM),
-    'electra': (ElectraConfig, ElectraForMaskedLM)
-
+    "bert": (BertConfig, BertForMaskedLM),
+    "roberta": (RobertaConfig, RobertaForMaskedLM),
+    "distilbert": (DistilBertConfig, DistilBertForMaskedLM),
+    "camembert-base": (CamembertConfig, CamembertForMaskedLM),
+    "electra": (ElectraConfig, ElectraForMaskedLM),
+}
 
 
 class BertLMLearner(Learner):
@@ -41,7 +53,6 @@ class BertLMLearner(Learner):
         logging_steps=100,
     ):
 
-        model_state_dict = None
         model_type = dataBunch.model_type
 
         config_class, model_class = MODEL_CLASSES[model_type]
@@ -304,14 +315,8 @@ class BertLMLearner(Learner):
         self.logger.info("Num examples = %d", len(self.data.val_dl.dataset))
         self.logger.info("Validation Batch size = %d", self.data.val_batch_size)
 
-        all_logits = None
-        all_labels = None
-
-        eval_loss, eval_accuracy = 0, 0
+        eval_loss = 0
         nb_eval_steps = 0
-
-        preds = None
-        out_label_ids = None
 
         validation_scores = {metric["name"]: 0.0 for metric in self.metrics}
 
