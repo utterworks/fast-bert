@@ -113,7 +113,8 @@ neg
 
 For multi-label classification, **labels.csv** will contain all possible labels:
 
-```toxic
+```
+toxic
 severe_toxic
 obscene
 threat
