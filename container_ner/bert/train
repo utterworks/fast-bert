@@ -178,6 +178,7 @@ def train():
             grad_accumulation_steps=int(training_config["grad_accumulation_steps"]),
             multi_gpu=multi_gpu,
             logging_steps=int(training_config["logging_steps"]),
+            save_steps=int(training_config.get("save_steps", 0)),
         )
 
         learner.fit(int(hyperparameters["epochs"]), float(hyperparameters["lr"]))

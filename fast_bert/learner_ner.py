@@ -72,6 +72,7 @@ class BertNERLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
+        save_steps=0,
     ):
         if is_fp16 and (IS_AMP_AVAILABLE is False):
             logger.debug("Apex not installed. switching off FP16 training")
@@ -95,6 +96,7 @@ class BertNERLearner(Learner):
             max_grad_norm,
             adam_epsilon,
             logging_steps,
+            save_steps,
         )
 
     def __init__(
@@ -114,6 +116,7 @@ class BertNERLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
+        save_steps=0,
     ):
 
         super(BertNERLearner, self).__init__(
@@ -155,6 +158,7 @@ class BertNERLearner(Learner):
             logging_steps=logging_steps,
             fp16=is_fp16,
             fp16_opt_level=fp16_opt_level,
+            save_steps=save_steps,
         )
 
         # LR Finder
