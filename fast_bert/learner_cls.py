@@ -193,7 +193,7 @@ class BertLearner(Learner):
             is_fp16 = False
 
         model = load_model(
-            dataBunch, pretrained_path, finetuned_wgts_path, device, multi_label
+            dataBunch, pretrained_path, finetuned_wgts_path, device, multi_label, pos_weight, weight
         )
 
         return BertLearner(
