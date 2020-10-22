@@ -125,7 +125,7 @@ except Exception:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
 
 
-def load_model(dataBunch, pretrained_path, finetuned_wgts_path, device, multi_label):
+def load_model(dataBunch, pretrained_path, finetuned_wgts_path, device, multi_label, pos_weight, weight):
 
     model_type = dataBunch.model_type
     model_state_dict = None
