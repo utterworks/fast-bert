@@ -6,7 +6,7 @@ sklearn
 spacy
 seqeval
 tokenizers==0.8.1.rc1
-transformers>=3.0.2
+transformers==3.0.2
 pandas
 python-box
 more-itertools
