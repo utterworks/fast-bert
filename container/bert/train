@@ -6,14 +6,13 @@ import pickle
 import sys
 import traceback
 import pandas as pd
+import numpy as np
+import random
 import datetime
 from pathlib import Path
 import logging
-
 import torch
-
 from transformers import AutoTokenizer
-
 
 from fast_bert.data_cls import BertDataBunch
 from fast_bert.learner_cls import BertLearner
@@ -99,6 +98,11 @@ def train():
         training_config["train_file"] = training_config.get("train_file", "train.csv")
         training_config["val_file"] = training_config.get("val_file", "val.csv")
         training_config["label_file"] = training_config.get("label_file", "labels.csv")
+        training_config["random_state"] = training_config.get("random_state", None)
+
+        if training_config["random_state"] is not None:
+            print("setting random state {}".format(training_config["random_state"]))
+            random_seed(int(training_config["random_state"]))
 
         # Logger
         # logfile = str(LOG_PATH/'log-{}-{}.txt'.format(run_start_time, training_config["run_text"]))
@@ -230,6 +234,19 @@ def train():
         print("Exception during training: " + str(e) + "\n" + trc, file=sys.stderr)
         # A non-zero exit code causes the training job to be marked as Failed.
         sys.exit(255)
+
+
+def random_seed(seed_value):
+    random.seed(seed_value)  # Python
+    np.random.seed(seed_value)  # cpu vars
+
+    torch.manual_seed(seed_value)  # cpu  vars
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed_value)
+        torch.cuda.manual_seed_all(seed_value)  # gpu vars
+        torch.backends.cudnn.deterministic = True  # needed
+        torch.backends.cudnn.benchmark = False
 
 
 if __name__ == "__main__":
