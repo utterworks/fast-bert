@@ -142,9 +142,9 @@ def load_model(dataBunch, pretrained_path, finetuned_wgts_path, device, multi_la
 
     if multi_label is True:
         config_class, model_class, _ = MODEL_CLASSES[model_type]
-        
-        model_class[1].pos_weight = pos_weight
-        model_class[1].weight = weight
+
+        model_class[1].pos_weight = dataBunch.pos_weight
+        model_class[1].weight = dataBunch.weight
 
         config = config_class.from_pretrained(
             str(pretrained_path), num_labels=len(dataBunch.labels)
