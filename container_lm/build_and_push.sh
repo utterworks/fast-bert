@@ -7,6 +7,8 @@
 # machine and combined with the account and region to form the repository name for ECR.
 IMAGE="fluent-fast-bert-lm"
 
+TAG="$1"
+
 # parameters
 FASTAI_VERSION="1.0"
 PY_VERSION="py36"
@@ -45,7 +47,6 @@ $(aws ecr get-login --registry-ids 520713654638 --region ${region} --no-include-
 for arch in gpu
 do  
     echo "Building image with arch=${arch}, region=${region}"
-    TAG="${FASTAI_VERSION}-${arch}-${PY_VERSION}"
     FULLNAME="${account}.dkr.ecr.${region}.amazonaws.com/${IMAGE}:${TAG}"
     docker build -t ${IMAGE}:${TAG} --build-arg ARCH="$arch" -f "Dockerfile" .
     docker tag ${IMAGE}:${TAG} ${FULLNAME}
