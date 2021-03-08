@@ -14,7 +14,7 @@ from .modeling import (
     DistilBertForMultiLabelSequenceClassification,
     CamembertForMultiLabelSequenceClassification,
     AlbertForMultiLabelSequenceClassification,
-    ElectraForMultiLabelSequenceClassification
+    ElectraForMultiLabelSequenceClassification,
 )
 
 from .bert_layers import BertLayerNorm
@@ -55,7 +55,7 @@ from transformers import (
     DistilBertTokenizer,
     ElectraConfig,
     ElectraForSequenceClassification,
-    ElectraTokenizer
+    ElectraTokenizer,
 )
 
 from transformers import AutoModelForSequenceClassification, AutoConfig
@@ -125,7 +125,15 @@ except Exception:
     from .bert_layers import BertLayerNorm as FusedLayerNorm
 
 
-def load_model(dataBunch, pretrained_path, finetuned_wgts_path, device, multi_label, pos_weight, weight):
+def load_model(
+    dataBunch,
+    pretrained_path,
+    finetuned_wgts_path,
+    device,
+    multi_label,
+    pos_weight,
+    weight,
+):
 
     model_type = dataBunch.model_type
     model_state_dict = None
@@ -142,7 +150,7 @@ def load_model(dataBunch, pretrained_path, finetuned_wgts_path, device, multi_la
 
     if multi_label is True:
         config_class, model_class, _ = MODEL_CLASSES[model_type]
-        
+
         model_class[1].pos_weight = pos_weight
         model_class[1].weight = weight
 
@@ -186,14 +194,20 @@ class BertLearner(Learner):
         logging_steps=100,
         freeze_transformer_layers=False,
         pos_weight=None,
-        weight=None
+        weight=None,
     ):
         if is_fp16 and (IS_AMP_AVAILABLE is False):
             logger.debug("Apex not installed. switching off FP16 training")
             is_fp16 = False
 
         model = load_model(
-            dataBunch, pretrained_path, finetuned_wgts_path, device, multi_label, pos_weight, weight
+            dataBunch,
+            pretrained_path,
+            finetuned_wgts_path,
+            device,
+            multi_label,
+            pos_weight,
+            weight,
         )
 
         return BertLearner(
@@ -214,7 +228,7 @@ class BertLearner(Learner):
             max_grad_norm,
             adam_epsilon,
             logging_steps,
-            freeze_transformer_layers
+            freeze_transformer_layers,
         )
 
     def __init__(
@@ -236,7 +250,7 @@ class BertLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
-        freeze_transformer_layers=False
+        freeze_transformer_layers=False,
     ):
 
         super(BertLearner, self).__init__(
@@ -518,7 +532,7 @@ class BertLearner(Learner):
             # Evaluation metrics
             for metric in self.metrics:
                 validation_scores[metric["name"]] = metric["function"](
-                    all_logits, all_labels
+                    all_logits, all_labels, self.data.labels
                 )
             results.update(validation_scores)
 

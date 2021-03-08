@@ -1,7 +1,16 @@
 import numpy as np
 from torch import Tensor
-from sklearn.metrics import roc_curve, auc, hamming_loss, accuracy_score
+from sklearn.metrics import (
+    roc_curve,
+    auc,
+    hamming_loss,
+    accuracy_score,
+    confusion_matrix as sklearn_confusion_matrix,
+)
 import pdb
+import logging
+
+logger = logging.getLogger()
 
 CLASSIFICATION_THRESHOLD: float = 0.5  # Best keep it in [0.0, 1.0] range
 
@@ -10,13 +19,13 @@ CLASSIFICATION_THRESHOLD: float = 0.5  # Best keep it in [0.0, 1.0] range
 #     return np.sum(outputs == labels)
 
 
-def accuracy(y_pred: Tensor, y_true: Tensor):
+def accuracy(y_pred: Tensor, y_true: Tensor, **kwargs):
     y_pred = y_pred.cpu()
     outputs = np.argmax(y_pred, axis=1)
     return np.mean(outputs.numpy() == y_true.detach().cpu().numpy())
 
 
-def accuracy_multilabel(y_pred: Tensor, y_true: Tensor, sigmoid: bool = True):
+def accuracy_multilabel(y_pred: Tensor, y_true: Tensor, sigmoid: bool = True, **kwargs):
     if sigmoid:
         y_pred = y_pred.sigmoid()
     y_pred = y_pred.cpu()
@@ -31,6 +40,7 @@ def accuracy_thresh(
     y_true: Tensor,
     thresh: float = CLASSIFICATION_THRESHOLD,
     sigmoid: bool = True,
+    **kwargs
 ):
     "Compute accuracy when `y_pred` and `y_true` are the same size."
     if sigmoid:
@@ -48,6 +58,7 @@ def fbeta(
     beta: float = 2,
     eps: float = 1e-9,
     sigmoid: bool = True,
+    **kwargs
 ):
     "Computes the f_beta between `preds` and `targets`"
     beta2 = beta ** 2
@@ -62,7 +73,7 @@ def fbeta(
     return res.mean().item()
 
 
-def roc_auc(y_pred: Tensor, y_true: Tensor):
+def roc_auc(y_pred: Tensor, y_true: Tensor, **kwargs):
     # ROC-AUC calcualation
     # Compute ROC curve and ROC area for each class
     fpr = dict()
@@ -85,6 +96,7 @@ def Hamming_loss(
     sigmoid: bool = True,
     thresh: float = CLASSIFICATION_THRESHOLD,
     sample_weight=None,
+    **kwargs
 ):
     if sigmoid:
         y_pred = y_pred.sigmoid()
@@ -99,6 +111,7 @@ def Exact_Match_Ratio(
     thresh: float = CLASSIFICATION_THRESHOLD,
     normalize: bool = True,
     sample_weight=None,
+    **kwargs
 ):
     if sigmoid:
         y_pred = y_pred.sigmoid()
@@ -108,5 +121,22 @@ def Exact_Match_Ratio(
     )
 
 
-def F1(y_pred: Tensor, y_true: Tensor, threshold: float = CLASSIFICATION_THRESHOLD):
+def F1(
+    y_pred: Tensor,
+    y_true: Tensor,
+    threshold: float = CLASSIFICATION_THRESHOLD,
+    **kwargs
+):
     return fbeta(y_pred, y_true, thresh=threshold, beta=1)
+
+
+def confusion_matrix(y_pred: Tensor, y_true: Tensor, **kwargs):
+    try:
+        return sklearn_confusion_matrix(
+            y_true.detach().cpu().numpy(),
+            y_pred.detach().cpu().numpy(),
+            labels=kwargs.get("labels"),
+        )
+    except Exception as e:
+        logger.error(e)
+
