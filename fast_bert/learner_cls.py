@@ -464,7 +464,7 @@ class BertLearner(Learner):
             return global_step, tr_loss / global_step
 
     ### Evaluate the model
-    def validate(self, quiet=False, loss_only=False):
+    def validate(self, quiet=False, loss_only=False, return_preds=False):
         if quiet is False:
             self.logger.info("Running evaluation")
             self.logger.info("  Num examples = %d", len(self.data.val_dl.dataset))
@@ -527,6 +527,10 @@ class BertLearner(Learner):
         eval_loss = eval_loss / nb_eval_steps
 
         results = {"loss": eval_loss}
+
+        if return_preds:
+            results["y_preds"] = all_logits.detach().cpu().numpy()
+            results["y_true"] = all_labels.detach().cpu().numpy()
 
         if loss_only is False:
             # Evaluation metrics
