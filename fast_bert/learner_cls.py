@@ -529,7 +529,7 @@ class BertLearner(Learner):
         results = {"loss": eval_loss}
 
         if return_preds:
-            results["y_preds"] = all_logits.detach().cpu().numpy()
+            results["y_preds"] = np.argmax(all_logits.detach().cpu().numpy(), axis=1)
             results["y_true"] = all_labels.detach().cpu().numpy()
 
         if loss_only is False:

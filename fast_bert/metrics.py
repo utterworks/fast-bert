@@ -132,10 +132,9 @@ def F1(
 
 def confusion_matrix(y_pred: Tensor, y_true: Tensor, **kwargs):
     try:
+        y_pred = np.argmax(y_pred.detach().cpu().numpy(), axis=1)
         return sklearn_confusion_matrix(
-            y_true.detach().cpu().numpy(),
-            y_pred.detach().cpu().numpy(),
-            labels=kwargs.get("labels"),
+            y_true.detach().cpu().numpy(), y_pred, labels=kwargs.get("labels"),
         )
     except Exception as e:
         logger.error(e)
