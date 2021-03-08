@@ -532,7 +532,7 @@ class BertLearner(Learner):
             # Evaluation metrics
             for metric in self.metrics:
                 validation_scores[metric["name"]] = metric["function"](
-                    all_logits, all_labels, self.data.labels
+                    all_logits, all_labels, labels=self.data.labels
                 )
             results.update(validation_scores)
 
