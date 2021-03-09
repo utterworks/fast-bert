@@ -213,6 +213,10 @@ def train():
             optimizer_type=hyperparameters["optimizer_type"],
         )
 
+        results = learner.validate(return_preds=True)
+        logger.info("y_pred: {}".format(json.dumps(results["y_pred"].tolist())))
+        logger.info("y_true: {}".format(json.dumps(results["y_true"].tolist())))
+
         # save model and tokenizer artefacts
         learner.save_model()
 
