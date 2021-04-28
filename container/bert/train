@@ -158,6 +158,17 @@ def train():
             label_col = training_config["label_col"]
 
         logger.info("label columns: {}".format(label_col))
+        test_data = None
+        test_df = None
+        if training_config.get("test_file", None):
+            try:
+                test_df = pd.read_csv(DATA_PATH / training_config["test_file"])
+            except Exception:
+                test_df = pd.read_csv(
+                    DATA_PATH / training_config["test_file"], encoding="latin1"
+                )
+            test_data = list(test_df["text"])
+            logger.info("Test file available. Test count {}".format(len(test_df)))
 
         # Create databunch
         databunch = BertDataBunch(
@@ -168,6 +179,7 @@ def train():
             val_file=training_config["val_file"],
             label_file=training_config["label_file"],
             text_col=training_config["text_col"],
+            test_data=test_data,
             label_col=label_col,
             batch_size_per_gpu=int(hyperparameters["train_batch_size"]),
             max_seq_length=int(hyperparameters["max_seq_length"]),
@@ -214,8 +226,30 @@ def train():
         )
 
         results = learner.validate(return_preds=True)
-        logger.info("y_pred: {}".format(json.dumps(results["y_pred"].tolist())))
+        logger.info("y_pred: {}".format(json.dumps(results["y_preds"].tolist())))
         logger.info("y_true: {}".format(json.dumps(results["y_true"].tolist())))
+        logger.info("labels: {}".format(json.dumps(databunch.labels)))
+
+        if test_data is not None:
+            predictions = learner.predict_batch()
+            results = []
+            for index, row in test_df.iterrows():
+                preds = predictions[index][:3]
+                result = {"text": row.get("text"), "ground_truth": row.get("label")}
+                for i, pred in enumerate(preds):
+                    result["label_{}".format(i + 1)] = pred[0]
+                    result["confidence_{}".format(i + 1)] = pred[1]
+
+                results.append(result)
+
+            # save test results with model outcome
+            pd.DataFrame(results).to_csv(
+                os.path.join(model_path, "test_result.csv"), index=None
+            )
+
+            pd.DataFrame(results).to_csv(
+                os.path.join(output_path, "test_result.csv"), index=None
+            )
 
         # save model and tokenizer artefacts
         learner.save_model()
