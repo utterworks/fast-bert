@@ -60,10 +60,9 @@ RUN pip --no-cache-dir install \
     pandas \
     fastprogress \
     python-box \
-    tensorboardX \
-    fastai
+    tensorboardX 
 
-RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
+# RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 
 # RUN pip --no-cache-dir install fast-bert
 RUN pip install fast-bert
