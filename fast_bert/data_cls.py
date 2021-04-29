@@ -321,7 +321,7 @@ class MultiLabelTextProcessor(TextProcessor):
             return list(
                 df.apply(
                     lambda row: InputExample(
-                        guid=row.index, text_a=row[text_col], label=[]
+                        guid=row.index, text_a=str(row[text_col]), label=[]
                     ),
                     axis=1,
                 )
@@ -331,7 +331,7 @@ class MultiLabelTextProcessor(TextProcessor):
                 df.apply(
                     lambda row: InputExample(
                         guid=row.index,
-                        text_a=row[text_col],
+                        text_a=str(row[text_col]),
                         label=_get_labels(row, label_col),
                     ),
                     axis=1,
