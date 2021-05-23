@@ -60,7 +60,6 @@ from transformers import (
 )
 
 from transformers import AutoModelForSequenceClassification, AutoConfig
-from packaging import version
 
 PYTORCH_VERSION = version.parse(torch.__version__)
 

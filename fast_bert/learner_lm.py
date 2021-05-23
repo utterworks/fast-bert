@@ -1,5 +1,6 @@
 import os
 import torch
+from packaging import version
 from pathlib import Path
 import numpy as np
 
@@ -24,6 +25,7 @@ from transformers import (
     ElectraForMaskedLM,
 )
 
+from torch.optim.lr_scheduler import _LRScheduler, Optimizer
 
 MODEL_CLASSES = {
     "bert": (BertConfig, BertForMaskedLM),
@@ -32,6 +34,12 @@ MODEL_CLASSES = {
     "camembert-base": (CamembertConfig, CamembertForMaskedLM),
     "electra": (ElectraConfig, ElectraForMaskedLM),
 }
+
+if version.parse(torch.__version__) >= version.parse("1.6"):
+    IS_AMP_AVAILABLE = True
+    from torch.cuda.amp import autocast
+else:
+    IS_AMP_AVAILABLE = False
 
 
 class BertLMLearner(Learner):
@@ -53,13 +61,16 @@ class BertLMLearner(Learner):
         logging_steps=100,
     ):
 
+        if is_fp16 and (IS_AMP_AVAILABLE is False):
+            logger.debug("Apex not installed. switching off FP16 training")
+            is_fp16 = False
+
         model_type = dataBunch.model_type
 
         config_class, model_class = MODEL_CLASSES[model_type]
 
         config = config_class.from_pretrained(pretrained_path)
         model = model_class.from_pretrained(pretrained_path, config=config)
-
         model.to(device)
 
         return BertLMLearner(
@@ -125,6 +136,8 @@ class BertLMLearner(Learner):
 
         self.output_dir = output_dir
 
+        self.scaler = torch.cuda.amp.GradScaler() if is_fp16 is True else None
+
         if self.multi_gpu:
             self.n_gpu = torch.cuda.device_count()
 
@@ -161,15 +174,6 @@ class BertLMLearner(Learner):
         if hasattr(self.model, "module"):
             self.model = self.model.module
 
-        if self.is_fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex to use fp16 training")
-            self.model, optimizer = amp.initialize(
-                self.model, optimizer, opt_level=self.fp16_opt_level
-            )
-
         # Get scheduler
         scheduler = self.get_scheduler(
             optimizer, t_total=t_total, schedule_type=schedule_type
@@ -202,38 +206,9 @@ class BertLMLearner(Learner):
             epoch_step = 0
             epoch_loss = 0.0
             for step, batch in enumerate(progress_bar(train_dataloader, parent=pbar)):
-
                 inputs, labels = self.data.mask_tokens(batch)
                 cpu_device = torch.device("cpu")
-
-                inputs = inputs.to(self.device)
-                labels = labels.to(self.device)
-
-                self.model.train()
-
-                outputs = self.model(inputs, masked_lm_labels=labels)
-                loss = outputs[
-                    0
-                ]  # model outputs are always tuple in pytorch-transformers (see doc)
-
-                if self.n_gpu > 1:
-                    loss = (
-                        loss.mean()
-                    )  # mean() to average on multi-gpu parallel training
-                if self.grad_accumulation_steps > 1:
-                    loss = loss / self.grad_accumulation_steps
-
-                if self.is_fp16:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(
-                        amp.master_params(optimizer), self.max_grad_norm
-                    )
-                else:
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(
-                        self.model.parameters(), self.max_grad_norm
-                    )
+                loss = self.training_step(batch)
 
                 tr_loss += loss.item()
                 epoch_loss += loss.item()
@@ -244,7 +219,20 @@ class BertLMLearner(Learner):
                 torch.cuda.empty_cache()
 
                 if (step + 1) % self.grad_accumulation_steps == 0:
-                    optimizer.step()
+                    # gradient clipping
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), self.max_grad_norm
+                    )
+
+                    if self.is_fp16:
+                        # AMP: gradients need unscaling
+                        self.scaler.unscale_(optimizer)
+
+                    if self.is_fp16:
+                        self.scaler.step(optimizer)
+                        self.scaler.update()
+                    else:
+                        optimizer.step()
                     scheduler.step()
 
                     self.model.zero_grad()
@@ -307,6 +295,35 @@ class BertLMLearner(Learner):
 
         tb_writer.close()
         return global_step, tr_loss / global_step
+
+    ### Training step
+    def training_step(self, batch):
+        inputs, labels = self.data.mask_tokens(batch)
+
+        inputs = inputs.to(self.device)
+        labels = labels.to(self.device)
+
+        self.model.train()
+
+        if self.is_fp16:
+            with autocast():
+                outputs = self.model(inputs, masked_lm_labels=labels)
+        else:
+            outputs = self.model(inputs, masked_lm_labels=labels)
+
+        loss = outputs[0]
+
+        if self.n_gpu > 1:
+            loss = loss.mean()
+        if self.grad_accumulation_steps > 1:
+            loss = loss / self.grad_accumulation_steps
+
+        if self.is_fp16:
+            self.scaler.scale(loss).backward()
+        else:
+            loss.backward()
+
+        return loss
 
     ### Evaluate the model
     def validate(self):
