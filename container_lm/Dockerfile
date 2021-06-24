@@ -54,7 +54,6 @@ RUN pip --no-cache-dir install \
     flask \
     pathlib \
     gunicorn \
-    gevent \
     scipy \
     sklearn \
     pandas \
