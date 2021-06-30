@@ -60,7 +60,8 @@ RUN pip --no-cache-dir install \
     pandas \
     fastprogress \
     python-box \
-    tensorboardX 
+    tensorboardX \
+    cryptography
 
 # RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 
