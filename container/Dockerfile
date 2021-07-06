@@ -28,7 +28,7 @@ RUN curl -o ~/miniconda.sh -LO  https://repo.continuum.io/miniconda/Miniconda3-l
     chmod +x ~/miniconda.sh && \
     ~/miniconda.sh -b -p /opt/conda && \
     rm ~/miniconda.sh && \
-    /opt/conda/bin/conda install -y python=3.8 numpy pyyaml scipy ipython mkl mkl-include ninja cython && \
+    /opt/conda/bin/conda install -y python=3.7 numpy pyyaml scipy ipython mkl mkl-include ninja cython && \
     /opt/conda/bin/conda install -y -c pytorch magma-cuda100 && \
     /opt/conda/bin/conda clean -ya
 ENV PATH /opt/conda/bin:$PATH
@@ -60,7 +60,9 @@ RUN pip --no-cache-dir install \
     pandas \
     fastprogress \
     python-box \
-    tensorboardX 
+    tensorboardX && \
+    pip install cryptography --upgrade && \
+    pip install urllib3 --upgrade
 
 # RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 
