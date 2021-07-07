@@ -59,7 +59,7 @@ RUN pip --no-cache-dir install \
     pandas \
     fastprogress \
     python-box \
-    tensorboardX \
+    tensorboardX && \
     pip install cryptography --upgrade && \
     pip install urllib3 --upgrade
 
