@@ -66,6 +66,7 @@ RUN pip --no-cache-dir install \
 
 # RUN pip --no-cache-dir install fast-bert
 RUN pip install fast-bert==1.9.9
+# RUN pip install transformers==3.2.0
 
 ENV PATH="/opt/ml/code:${PATH}"
 COPY /bert /opt/ml/code
