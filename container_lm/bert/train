@@ -324,7 +324,7 @@ def train():
         # Run validation
         if training_args.do_eval:
             logger.info("*** Evaluate ***")
-            logger.info(validate(trainer, logger))
+            # logger.info(validate(trainer, logger))
 
         # save model config file
         with open(os.path.join(model_path, "model_config.json"), "w") as f:
