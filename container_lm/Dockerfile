@@ -60,7 +60,8 @@ RUN pip --no-cache-dir install \
     fastprogress \
     python-box \
     tensorboardX \
-    cryptography
+    pip install cryptography --upgrade && \
+    pip install urllib3 --upgrade
 
 # RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 
