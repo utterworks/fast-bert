@@ -61,7 +61,7 @@ RUN pip --no-cache-dir install \
     python-box \
     tensorboardX && \
     pip install cryptography --upgrade && \
-    pip install urllib3 --upgrade
+    pip install urllib3==1.26.6
 
 # RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
 # RUN pip --no-cache-dir install fast-bert
