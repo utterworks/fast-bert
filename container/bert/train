@@ -119,7 +119,9 @@ def train():
         logger = logging.getLogger()
 
         # Define pretrained model path
-        PRETRAINED_PATH = Path(pretrained_model_path) / training_config["model_name"]
+        PRETRAINED_PATH = Path(pretrained_model_path) / training_config[
+            "model_name"
+        ].replace("/", ":")
         if PRETRAINED_PATH.is_dir():
             logger.info("model path used {}".format(PRETRAINED_PATH))
             model_name_path = str(PRETRAINED_PATH)
