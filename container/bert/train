@@ -12,6 +12,7 @@ import datetime
 from pathlib import Path
 import logging
 import torch
+import shutil
 from transformers import AutoTokenizer
 
 from fast_bert.data_cls import BertDataBunch
@@ -263,6 +264,12 @@ def train():
         # save label file
         with open(os.path.join(model_path, "labels.csv"), "w") as f:
             f.write("\n".join(databunch.labels))
+
+        # save label_metadata csv file from LABEL_PATH to model_path
+        shutil.copyfile(
+            os.path.join(LABEL_PATH, "label_metadata.csv"),
+            os.path.join(model_path, "label_metadata.csv"),
+        )
 
     except Exception as e:
         # Write out an error file. This will be returned as the failureReason in the
