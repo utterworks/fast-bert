@@ -267,8 +267,8 @@ def train():
 
         # save label_metadata csv file from LABEL_PATH to model_path
         shutil.copyfile(
-            os.path.join(LABEL_PATH, "label_metadata.csv"),
-            os.path.join(model_path, "label_metadata.csv"),
+            os.path.join(LABEL_PATH, "label_metadata.json"),
+            os.path.join(model_path, "label_metadata.json"),
         )
 
     except Exception as e:
