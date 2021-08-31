@@ -77,6 +77,6 @@ WORKDIR /opt/ml/code
 
 RUN cd $WORKDIR
 
-RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased roberta-base distilbert-base-uncased distilroberta-base google/mobilebert-uncased
+RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased roberta-base distilbert-base-uncased distilroberta-base
 
 RUN rm -rf /opt/ml/input/data/training/cache/
