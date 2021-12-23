@@ -72,12 +72,8 @@ RUN pip install cryptography --upgrade && \
     pip install urllib3 --upgrade
 
 ENV PATH="/opt/ml/code:${PATH}"
-COPY /bert /opt/ml/code
+COPY /bert_batch /opt/ml/code
 
 WORKDIR /opt/ml/code
 
 RUN cd $WORKDIR
-
-RUN python download_pretrained_models.py --location_dir ./pretrained_models/ --models bert-base-uncased roberta-base distilbert-base-uncased distilroberta-base
-
-RUN rm -rf /opt/ml/input/data/training/cache/

@@ -581,7 +581,7 @@ class BertLearner(Learner):
                 )
 
         result_df = pd.DataFrame(all_logits, columns=self.data.labels)
-        results = result_df.to_dict("record")
+        results = result_df.to_dict("records")
 
         return [sorted(x.items(), key=lambda kv: kv[1], reverse=True) for x in results]
 

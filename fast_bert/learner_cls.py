@@ -550,7 +550,9 @@ class BertLearner(Learner):
     def predict_batch(self, texts=None):
 
         if texts:
+            self.logger.info("---PROGRESS-STATUS---: Tokenizing input texts...")
             dl = self.data.get_dl_from_texts(texts)
+            self.logger.info("---PROGRESS-STATUS---: Tokenizing input texts...DONE")
         elif self.data.test_dl:
             dl = self.data.test_dl
         else:
@@ -560,6 +562,11 @@ class BertLearner(Learner):
 
         self.model.eval()
         for step, batch in enumerate(dl):
+            self.logger.info(
+                "---PROGRESS-STATUS---: Predicting batch {}/{}".format(
+                    step + 1, len(dl)
+                )
+            )
             batch = tuple(t.to(self.device) for t in batch)
 
             inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": None}
@@ -583,10 +590,16 @@ class BertLearner(Learner):
                 all_logits = np.concatenate(
                     (all_logits, logits.detach().cpu().numpy()), axis=0
                 )
+            # self.logger.info(
+            #     "---PROGRESS-STATUS---: Predicting batch {}/{}...DONE".format(
+            #         step + 1, len(dl)
+            #     )
+            # )
 
         result_df = pd.DataFrame(all_logits, columns=self.data.labels)
-        results = result_df.to_dict("record")
+        results = result_df.to_dict(orient="records")
 
+        self.logger.info("---PROGRESS-STATUS---: Predicting batch...DONE")
         return [sorted(x.items(), key=lambda kv: kv[1], reverse=True) for x in results]
 
     # Begin code for LR Finder
