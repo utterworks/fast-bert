@@ -16,6 +16,7 @@ from .modeling import (
     CamembertForMultiLabelSequenceClassification,
     AlbertForMultiLabelSequenceClassification,
     ElectraForMultiLabelSequenceClassification,
+    FlaubertForMultiLabelSequenceClassification
 )
 
 from .bert_layers import BertLayerNorm
@@ -57,6 +58,9 @@ from transformers import (
     ElectraConfig,
     ElectraForSequenceClassification,
     ElectraTokenizer,
+    FlaubertConfig,
+    FlaubertForSequenceClassification,
+    FlaubertTokenizer,
 )
 
 from transformers import AutoModelForSequenceClassification, AutoConfig
@@ -109,6 +113,11 @@ MODEL_CLASSES = {
         ElectraConfig,
         (ElectraForSequenceClassification, ElectraForMultiLabelSequenceClassification),
         ElectraTokenizer,
+    ),
+    "flaubert": (    
+        FlaubertConfig,      
+        (FlaubertForSequenceClassification, FlaubertForMultiLabelSequenceClassification),
+        FlaubertTokenizer,
     ),
 }
 if version.parse(torch.__version__) >= version.parse("1.6"):
