@@ -1,5 +1,6 @@
 import torch
 from pathlib import Path
+import logging
 
 from transformers import (
     AdamW,
@@ -21,7 +22,7 @@ class Learner(object):
         pretrained_model_path,
         output_dir,
         device,
-        logger,
+        logger=logging.getLogger(__name__),
         multi_gpu=True,
         is_fp16=True,
         warmup_steps=0,
@@ -106,7 +107,7 @@ class Learner(object):
             "warmup_cosine_hard_restarts": get_cosine_with_hard_restarts_schedule_with_warmup,
         }
 
-        if schedule_type == None or schedule_type == "none":
+        if schedule_type is None or schedule_type == "none":
             return SCHEDULES[schedule_type](optimizer)
 
         elif schedule_type == "warmup_constant":
