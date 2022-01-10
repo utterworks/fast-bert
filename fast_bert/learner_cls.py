@@ -2,10 +2,12 @@ import os
 import copy
 import logging
 from packaging import version
+from transformers.file_utils import is_torch_tpu_available
 from .data_cls import BertDataBunch, InputExample, InputFeatures
 from tqdm.autonotebook import tqdm
 import matplotlib.pyplot as plt
 from .learner_util import Learner
+from .utils import is_torch_tpu_available
 from torch import nn
 from typing import List
 
@@ -59,6 +61,7 @@ from transformers import (
     ElectraForSequenceClassification,
     ElectraTokenizer,
 )
+
 
 from transformers import AutoModelForSequenceClassification, AutoConfig
 
@@ -117,6 +120,19 @@ if version.parse(torch.__version__) >= version.parse("1.6"):
     from torch.cuda.amp import autocast
 else:
     IS_AMP_AVAILABLE = False
+
+try:
+    import torch_xla
+    import torch_xla.core.xla_model as xm
+    import torch_xla.amp
+    import torch_xla.amp.syncfree.Adam as XLAAdam
+    import torch_xla.amp.GradScaler as XLA_GradScaler
+    import torch_xla.distributed.parallel_loader as pl
+except ImportError:
+    logging.info(
+        "XLA not installed; falling back to PyTorch. "
+        "Install XLA to get fast training."
+    )
 
 
 def load_model(
@@ -186,6 +202,7 @@ class BertLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
+        xla_training=False,
         freeze_transformer_layers=False,
         pos_weight=None,
         weight=None,
@@ -193,6 +210,19 @@ class BertLearner(Learner):
         if is_fp16 and (IS_AMP_AVAILABLE is False):
             logger.debug("Apex not installed. switching off FP16 training")
             is_fp16 = False
+
+        if is_torch_tpu_available() == False:
+            logger.debug("XLA not installed. switching off XLA training")
+            xla_training = False
+
+        if xla_training:
+            device = xm.xla_device()
+
+        if xla_training and is_fp16:
+            max_grad_norm = 0
+            logger.debug(
+                "XLA and FP16 training is enabled. Disabling gradient clipping"
+            )
 
         model = load_model(
             dataBunch,
@@ -207,22 +237,23 @@ class BertLearner(Learner):
         return BertLearner(
             dataBunch,
             model,
-            str(pretrained_path),
-            output_dir,
-            metrics,
-            device,
-            logger,
-            multi_gpu,
-            is_fp16,
-            loss_scale,
-            warmup_steps,
-            fp16_opt_level,
-            grad_accumulation_steps,
-            multi_label,
-            max_grad_norm,
-            adam_epsilon,
-            logging_steps,
-            freeze_transformer_layers,
+            pretrained_model_path=str(pretrained_path),
+            output_dir=output_dir,
+            metrics=metrics,
+            device=device,
+            logger=logger,
+            multi_gpu=multi_gpu,
+            is_fp16=is_fp16,
+            loss_scale=loss_scale,
+            warmup_steps=warmup_steps,
+            fp16_opt_level=fp16_opt_level,
+            grad_accumulation_steps=grad_accumulation_steps,
+            multi_label=multi_label,
+            max_grad_norm=max_grad_norm,
+            adam_epsilon=adam_epsilon,
+            logging_steps=logging_steps,
+            xla_training=xla_training,
+            freeze_transformer_layers=freeze_transformer_layers,
         )
 
     def __init__(
@@ -244,6 +275,7 @@ class BertLearner(Learner):
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
+        xla_training=False,
         freeze_transformer_layers=False,
     ):
 
@@ -273,7 +305,15 @@ class BertLearner(Learner):
         self.best_loss = None
         self.state_cacher = None
 
-        self.scaler = torch.cuda.amp.GradScaler() if is_fp16 is True else None
+        self.xla_training = xla_training
+
+        if is_fp16:
+            if xla_training:
+                self.scaler = XLA_GradScaler()
+            else:
+                self.scaler = torch.cuda.amp.GradScaler()
+        else:
+            self.scaler = None
 
         # Freezing transformer model layers
         if freeze_transformer_layers:
@@ -299,6 +339,10 @@ class BertLearner(Learner):
         tb_writer = SummaryWriter(tensorboard_dir)
 
         train_dataloader = self.data.train_dl
+        if self.xla_training:
+            train_dataloader = pl.ParallelLoader(
+                train_dataloader, [self.device]
+            ).per_device_loader(self.device)
         if self.max_steps > 0:
             t_total = self.max_steps
             self.epochs = (
@@ -351,21 +395,43 @@ class BertLearner(Learner):
                 loss = self.training_step(batch)
 
                 tr_loss += loss.item()
-                epoch_loss += loss.item()
+
+                if self.xla_training is False and (
+                    torch.isnan(tr_loss) or torch.isinf(tr_loss)
+                ):
+                    # if loss is nan or inf simply add the average of previous logged losses
+                    tr_loss += tr_loss / (1 + global_step)
+                else:
+                    epoch_loss += tr_loss
                 if (step + 1) % self.grad_accumulation_steps == 0:
                     # gradient clipping
-                    torch.nn.utils.clip_grad_norm_(
-                        self.model.parameters(), self.max_grad_norm
-                    )
+                    # torch.nn.utils.clip_grad_norm_(
+                    #     self.model.parameters(), self.max_grad_norm
+                    # )
                     if self.is_fp16:
                         # AMP: gradients need unscaling
                         self.scaler.unscale_(optimizer)
 
+                    if hasattr(optimizer, "clip_grad_norm"):
+                        # Some optimizers (like the sharded optimizer) have a specific way to do gradient clipping
+                        self.optimizer.clip_grad_norm(self.max_grad_norm)
+                    elif hasattr(self.model, "clip_grad_norm_"):
+                        # Some models (like FullyShardedDDP) have a specific way to do gradient clipping
+                        self.model.clip_grad_norm_(self.max_grad_norm)
+                    else:
+                        # Revert to normal clipping otherwise, handling Apex or full precision
+                        torch.nn.utils.clip_grad_norm_(
+                            self.model.parameters(), self.max_grad_norm
+                        )
+
                     if self.is_fp16:
                         self.scaler.step(optimizer)
                         self.scaler.update()
+                    elif self.xla_training:
+                        xm.optimizer_step(optimizer)
                     else:
                         optimizer.step()
+
                     scheduler.step()
 
                     self.model.zero_grad()
