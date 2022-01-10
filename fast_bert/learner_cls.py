@@ -121,18 +121,13 @@ if version.parse(torch.__version__) >= version.parse("1.6"):
 else:
     IS_AMP_AVAILABLE = False
 
-try:
+if is_torch_tpu_available():
     import torch_xla
     import torch_xla.core.xla_model as xm
     import torch_xla.amp
     import torch_xla.amp.syncfree.Adam as XLAAdam
     import torch_xla.amp.GradScaler as XLA_GradScaler
     import torch_xla.distributed.parallel_loader as pl
-except ImportError:
-    logging.info(
-        "XLA not installed; falling back to PyTorch. "
-        "Install XLA to get fast training."
-    )
 
 
 def load_model(
