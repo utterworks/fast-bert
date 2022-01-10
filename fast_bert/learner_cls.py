@@ -125,7 +125,6 @@ if is_torch_tpu_available():
     import torch_xla
     import torch_xla.core.xla_model as xm
     import torch_xla.amp
-    import torch_xla.amp.syncfree.Adam as XLAAdam
     import torch_xla.amp.GradScaler as XLA_GradScaler
     import torch_xla.distributed.parallel_loader as pl
 
