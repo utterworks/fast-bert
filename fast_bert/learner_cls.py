@@ -336,17 +336,19 @@ class BertLearner(Learner):
 
         train_dataloader = self.data.train_dl
         if self.xla_training:
-            train_dataloader = pl.ParallelLoader(
+            parallel_dataloader = pl.ParallelLoader(
                 train_dataloader, [self.device]
             ).per_device_loader(self.device)
         if self.max_steps > 0:
             t_total = self.max_steps
             self.epochs = (
-                self.max_steps // len(train_dataloader) // self.grad_accumulation_steps
+                self.max_steps
+                // len(parallel_dataloader)
+                // self.grad_accumulation_steps
                 + 1
             )
         else:
-            t_total = len(train_dataloader) // self.grad_accumulation_steps * epochs
+            t_total = len(parallel_dataloader) // self.grad_accumulation_steps * epochs
 
         # Prepare optimiser
         optimizer = self.get_optimizer(lr, optimizer_type=optimizer_type)
@@ -389,7 +391,9 @@ class BertLearner(Learner):
         for epoch in pbar:
             epoch_step = 0
             epoch_loss = 0.0
-            for step, batch in enumerate(progress_bar(train_dataloader, parent=pbar)):
+            for step, batch in enumerate(
+                progress_bar(parallel_dataloader, parent=pbar)
+            ):
                 # Run training step and get loss
                 tr_loss_step = self.training_step(batch)
 
