@@ -339,6 +339,8 @@ class BertLearner(Learner):
             parallel_dataloader = pl.ParallelLoader(
                 train_dataloader, [self.device]
             ).per_device_loader(self.device)
+        else:
+            parallel_dataloader = train_dataloader
         if self.max_steps > 0:
             t_total = self.max_steps
             self.epochs = (
