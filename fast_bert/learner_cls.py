@@ -381,7 +381,7 @@ class BertLearner(Learner):
 
         global_step = 0
         epoch_step = 0
-        tr_loss_scalar, logging_loss, epoch_loss = 0.0, 0.0
+        tr_loss_scalar, logging_loss, epoch_loss = 0.0, 0.0, 0.0
         # tr_loss is a tensor to avoid synchronization of TPUs through .item()
         tr_loss = torch.tensor(0.0).to(self.device)
 
