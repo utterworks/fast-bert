@@ -377,7 +377,10 @@ class BertLearner(Learner):
 
         global_step = 0
         epoch_step = 0
-        tr_loss, logging_loss, epoch_loss = 0.0, 0.0, 0.0
+        tr_loss_scalar, logging_loss, epoch_loss = 0.0, 0.0
+        # tr_loss is a tensor to avoid synchronization of TPUs through .item()
+        tr_loss = torch.tensor(0.0).to(self.device)
+
         self.model.zero_grad()
         pbar = master_bar(range(epochs))
 
@@ -386,17 +389,18 @@ class BertLearner(Learner):
             epoch_loss = 0.0
             for step, batch in enumerate(progress_bar(train_dataloader, parent=pbar)):
                 # Run training step and get loss
-                loss = self.training_step(batch)
+                tr_loss_step = self.training_step(batch)
 
-                tr_loss += loss.item()
+                # tr_loss += loss.item()
 
                 if self.xla_training is False and (
-                    torch.isnan(tr_loss) or torch.isinf(tr_loss)
+                    torch.isnan(tr_loss_step) or torch.isinf(tr_loss_step)
                 ):
                     # if loss is nan or inf simply add the average of previous logged losses
                     tr_loss += tr_loss / (1 + global_step)
                 else:
-                    epoch_loss += tr_loss
+                    tr_loss += tr_loss_step
+                    epoch_loss += tr_loss_step
                 if (step + 1) % self.grad_accumulation_steps == 0:
                     # gradient clipping
                     # torch.nn.utils.clip_grad_norm_(
@@ -445,7 +449,7 @@ class BertLearner(Learner):
                                         key, global_step, value
                                     )
                                 )
-
+                        tr_loss_scalar = tr_loss.item()
                         # Log metrics
                         self.logger.info(
                             "lr after step {}: {}".format(
@@ -455,17 +459,17 @@ class BertLearner(Learner):
                         self.logger.info(
                             "train_loss after step {}: {}".format(
                                 global_step,
-                                (tr_loss - logging_loss) / self.logging_steps,
+                                (tr_loss_scalar - logging_loss) / self.logging_steps,
                             )
                         )
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar(
                             "loss",
-                            (tr_loss - logging_loss) / self.logging_steps,
+                            (tr_loss_scalar - logging_loss) / self.logging_steps,
                             global_step,
                         )
 
-                        logging_loss = tr_loss
+                        logging_loss = tr_loss_scalar
 
             # Evaluate the model against validation set after every epoch
             if validate:
@@ -490,9 +494,9 @@ class BertLearner(Learner):
         tb_writer.close()
 
         if return_results:
-            return global_step, tr_loss / global_step, results_val
+            return global_step, tr_loss_scalar / global_step, results_val
         else:
-            return global_step, tr_loss / global_step
+            return global_step, tr_loss_scalar / global_step
 
     ### Training Step
     def training_step(self, batch):
