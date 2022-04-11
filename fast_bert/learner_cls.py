@@ -154,8 +154,8 @@ def load_model(
     if multi_label is True:
         config_class, model_class, _ = MODEL_CLASSES[model_type]
 
-        model_class[1].pos_weight = pos_weight
-        model_class[1].weight = weight
+        model_class[1].pos_weight = pos_weight if pos_weight is not None else dataBunch.pos_weight
+        model_class[1].weight = weight if weight is not None else dataBunch.weight
 
         config = config_class.from_pretrained(
             str(pretrained_path), num_labels=len(dataBunch.labels)
