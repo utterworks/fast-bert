@@ -10,7 +10,15 @@ from transformers import (
     DistilBertForSequenceClassification,
     CamembertForSequenceClassification,
     AlbertForSequenceClassification,
-    ElectraForSequenceClassification
+    ElectraForSequenceClassification,
+    XLMModel,
+    XLMConfig,
+    XLMTokenizer, 
+    XLMForSequenceClassification,
+    FlaubertModel,
+    FlaubertConfig,
+    FlaubertTokenizer,
+    FlaubertForSequenceClassification,
 )
 
 import torch
@@ -383,6 +391,55 @@ class ElectraForMultiLabelSequenceClassification(ElectraForSequenceClassificatio
 
         if labels is not None:
             loss_fct = BCEWithLogitsLoss()
+
+            loss = loss_fct(
+                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
+            )
+            outputs = (loss,) + outputs
+
+        return outputs  # (loss), logits, (hidden_states), (attentions)
+
+    
+class FlaubertForMultiLabelSequenceClassification(FlaubertForSequenceClassification):
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        langs=None,
+        token_type_ids=None,
+        position_ids=None,
+        lengths=None,
+        cache=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+    ):
+        transformer_outputs = self.transformer(
+            input_ids,
+            attention_mask=attention_mask,
+            langs=langs,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            lengths=lengths,
+            cache=cache,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+        )
+
+        output = transformer_outputs[0]
+        logits = self.sequence_summary(output)
+
+        outputs = (logits,) + transformer_outputs[1:]  # Keep new_mems and attention/hidden states if they are here
+
+        # Keep mems, hidden states, attentions if there are in it
+        outputs = (logits,) + transformer_outputs[1:]
+
+        if labels is not None:
+            loss_fct = BCEWithLogitsLoss(weight=self.weight, pos_weight=self.pos_weight)
 
             loss = loss_fct(
                 logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)

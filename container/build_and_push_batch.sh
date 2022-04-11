@@ -5,7 +5,7 @@
 
 # The argument to this script is the image name. This will be used as the image on the local
 # machine and combined with the account and region to form the repository name for ECR.
-IMAGE="fluent-fast-bert-lm"
+IMAGE="fluent-fast-bert"
 
 TAG="$1"
 
@@ -21,7 +21,7 @@ then
     exit 255
 fi
 
-chmod +x bert/train
+chmod +x bert_batch/train
 
 # Get the region defined in the current configuration (default to us-west-2 if none defined)
 region=$(aws configure get region)
@@ -47,8 +47,9 @@ $(aws ecr get-login --registry-ids 520713654638 --region ${region} --no-include-
 for arch in gpu
 do  
     echo "Building image with arch=${arch}, region=${region}"
-    FULLNAME="${account}.dkr.ecr.${region}.amazonaws.com/${IMAGE}:${TAG}"
-    docker build -t ${IMAGE}:${TAG} --build-arg ARCH="$arch" -f "Dockerfile" .
-    docker tag ${IMAGE}:${TAG} ${FULLNAME}
+    
+    FULLNAME="${account}.dkr.ecr.${region}.amazonaws.com/${IMAGE}:${TAG}-batch"
+    docker build -t ${IMAGE}:${TAG}-batch --build-arg ARCH="$arch" -f "batch.Dockerfile" .
+    docker tag ${IMAGE}:${TAG}-batch ${FULLNAME}
     docker push ${FULLNAME}
 done

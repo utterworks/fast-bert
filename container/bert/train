@@ -12,6 +12,7 @@ import datetime
 from pathlib import Path
 import logging
 import torch
+import shutil
 from transformers import AutoTokenizer
 
 from fast_bert.data_cls import BertDataBunch
@@ -119,7 +120,9 @@ def train():
         logger = logging.getLogger()
 
         # Define pretrained model path
-        PRETRAINED_PATH = Path(pretrained_model_path) / training_config["model_name"]
+        PRETRAINED_PATH = Path(pretrained_model_path) / training_config[
+            "model_name"
+        ].replace("/", ":")
         if PRETRAINED_PATH.is_dir():
             logger.info("model path used {}".format(PRETRAINED_PATH))
             model_name_path = str(PRETRAINED_PATH)
@@ -158,6 +161,17 @@ def train():
             label_col = training_config["label_col"]
 
         logger.info("label columns: {}".format(label_col))
+        test_data = None
+        test_df = None
+        if training_config.get("test_file", None):
+            try:
+                test_df = pd.read_csv(DATA_PATH / training_config["test_file"])
+            except Exception:
+                test_df = pd.read_csv(
+                    DATA_PATH / training_config["test_file"], encoding="latin1"
+                )
+            test_data = list(test_df["text"])
+            logger.info("Test file available. Test count {}".format(len(test_df)))
 
         # Create databunch
         databunch = BertDataBunch(
@@ -168,6 +182,7 @@ def train():
             val_file=training_config["val_file"],
             label_file=training_config["label_file"],
             text_col=training_config["text_col"],
+            test_data=test_data,
             label_col=label_col,
             batch_size_per_gpu=int(hyperparameters["train_batch_size"]),
             max_seq_length=int(hyperparameters["max_seq_length"]),
@@ -213,6 +228,32 @@ def train():
             optimizer_type=hyperparameters["optimizer_type"],
         )
 
+        results = learner.validate(return_preds=True)
+        logger.info("y_pred: {}".format(json.dumps(results["y_preds"].tolist())))
+        logger.info("y_true: {}".format(json.dumps(results["y_true"].tolist())))
+        logger.info("labels: {}".format(json.dumps(databunch.labels)))
+
+        if test_data is not None:
+            predictions = learner.predict_batch()
+            results = []
+            for index, row in test_df.iterrows():
+                preds = predictions[index][:3]
+                result = {"text": row.get("text"), "ground_truth": row.get("label")}
+                for i, pred in enumerate(preds):
+                    result["label_{}".format(i + 1)] = pred[0]
+                    result["confidence_{}".format(i + 1)] = pred[1]
+
+                results.append(result)
+
+            # save test results with model outcome
+            pd.DataFrame(results).to_csv(
+                os.path.join(model_path, "test_result.csv"), index=None
+            )
+
+            pd.DataFrame(results).to_csv(
+                os.path.join(output_path, "test_result.csv"), index=None
+            )
+
         # save model and tokenizer artefacts
         learner.save_model()
 
@@ -223,6 +264,12 @@ def train():
         # save label file
         with open(os.path.join(model_path, "labels.csv"), "w") as f:
             f.write("\n".join(databunch.labels))
+
+        # save label_metadata csv file from LABEL_PATH to model_path
+        shutil.copyfile(
+            os.path.join(LABEL_PATH, "labels_metadata.json"),
+            os.path.join(model_path, "labels_metadata.json"),
+        )
 
     except Exception as e:
         # Write out an error file. This will be returned as the failureReason in the

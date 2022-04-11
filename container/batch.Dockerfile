@@ -53,6 +53,7 @@ RUN which nvcc
 RUN pip --no-cache-dir install \
     flask \
     pathlib \
+    gevent \
     gunicorn \
     scipy \
     sklearn \
@@ -61,18 +62,18 @@ RUN pip --no-cache-dir install \
     python-box \
     tensorboardX
 
+
 # RUN git clone https://github.com/NVIDIA/apex.git && cd apex && python setup.py install --cuda_ext --cpp_ext
+
 # RUN pip --no-cache-dir install fast-bert
-RUN pip install fast-bert==1.9.9
-# RUN pip install transformers==3.2.0
+RUN pip install fast-bert==1.9.15
 
 RUN pip install cryptography --upgrade && \
     pip install urllib3 --upgrade
 
 ENV PATH="/opt/ml/code:${PATH}"
-COPY /bert /opt/ml/code
+COPY /bert_batch /opt/ml/code
 
 WORKDIR /opt/ml/code
 
 RUN cd $WORKDIR
-

@@ -321,7 +321,7 @@ class MultiLabelTextProcessor(TextProcessor):
             return list(
                 df.apply(
                     lambda row: InputExample(
-                        guid=row.index, text_a=row[text_col], label=[]
+                        guid=row.index, text_a=str(row[text_col]), label=[]
                     ),
                     axis=1,
                 )
@@ -331,7 +331,7 @@ class MultiLabelTextProcessor(TextProcessor):
                 df.apply(
                     lambda row: InputExample(
                         guid=row.index,
-                        text_a=row[text_col],
+                        text_a=str(row[text_col]),
                         label=_get_labels(row, label_col),
                     ),
                     axis=1,
@@ -377,7 +377,7 @@ class BertDataBunch(object):
         no_cache=False,
         custom_sampler=None,
         pos_weight=None,
-        weight=None
+        weight=None,
     ):
 
         # just in case someone passes string instead of Path
@@ -522,10 +522,10 @@ class BertDataBunch(object):
             test_examples, "test", is_test=True, no_cache=True
         )
 
+        batch_size = self.batch_size_per_gpu * 2 * max(1, self.n_gpu)
+
         test_sampler = SequentialSampler(test_dataset)
-        return DataLoader(
-            test_dataset, sampler=test_sampler, batch_size=self.batch_size_per_gpu
-        )
+        return DataLoader(test_dataset, sampler=test_sampler, batch_size=batch_size)
 
     def save(self, filename="databunch.pkl"):
         tmp_path = self.data_dir / "tmp"

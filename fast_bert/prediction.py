@@ -25,7 +25,11 @@ class BertClassificationPredictor(object):
         device=None,
     ):
         if device is None:
-            device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+            device = (
+                torch.device("cuda")
+                if torch.cuda.is_available()
+                else torch.device("cpu")
+            )
 
         self.model_path = model_path
         self.label_path = label_path
@@ -72,11 +76,11 @@ class BertClassificationPredictor(object):
 
         return learner
 
-    def predict_batch(self, texts):
-        return self.learner.predict_batch(texts)
+    def predict_batch(self, texts, verbose=False):
+        return self.learner.predict_batch(texts, verbose=verbose)
 
-    def predict(self, text):
-        predictions = self.predict_batch([text])[0]
+    def predict(self, text, verbose=False):
+        predictions = self.predict_batch([text], verbose=verbose)[0]
         return predictions
 
 
@@ -91,7 +95,11 @@ class BertNERPredictor(object):
         device=None,
     ):
         if device is None:
-            device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+            device = (
+                torch.device("cuda")
+                if torch.cuda.is_available()
+                else torch.device("cpu")
+            )
 
         self.model_path = model_path
         self.label_path = label_path
