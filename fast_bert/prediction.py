@@ -5,7 +5,10 @@ from .data_ner import BertNERDataBunch
 from .learner_cls import BertLearner
 from .learner_ner import BertNERLearner
 
+from .onnx_helper import load_model
+
 from transformers import AutoTokenizer
+import numpy as np
 
 import warnings
 
@@ -84,6 +87,53 @@ class BertClassificationPredictor(object):
         return predictions
 
 
+class BertOnnxClassificationPredictor(object):
+    def __init__(
+        self,
+        model_path,
+        label_path,
+        model_name="model.onnx",
+        multi_label=False,
+        model_type="bert",
+        use_fast_tokenizer=True,
+        do_lower_case=True,
+        device=None,
+    ):
+        if device is None:
+            device = (
+                torch.device("cuda")
+                if torch.cuda.is_available()
+                else torch.device("cpu")
+            )
+
+        self.model_path = model_path
+        self.label_path = label_path
+        self.multi_label = multi_label
+        self.model_type = model_type
+        self.do_lower_case = do_lower_case
+        self.device = device
+        self.labels = []
+
+        # Use auto-tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_path, use_fast=use_fast_tokenizer
+        )
+
+        with open(label_path / "labels.csv", "r") as f:
+            self.labels = f.read().split("\n")
+
+        self.model = load_model(self.model_path / model_name)
+
+    def predict(self, text, verbose=False):
+        # Inputs are provided through numpy array
+        model_inputs = self.tokenizer(text, return_tensors="pt")
+        inputs_onnx = {k: v.cpu().detach().numpy() for k, v in model_inputs.items()}
+        outputs = self.model.run(None, inputs_onnx)
+        softmax_preds = softmax(outputs[0])
+        preds = list(zip(self.labels, softmax_preds[0]))
+        return sorted(preds, key=lambda x: x[1], reverse=True)
+
+
 class BertNERPredictor(object):
     def __init__(
         self,
@@ -154,3 +204,10 @@ class BertNERPredictor(object):
             text, group=group, exclude_entities=exclude_entities
         )
         return predictions
+
+
+def softmax(x: np.ndarray, axis: int = -1) -> np.ndarray:
+    x_max = np.max(x, axis=axis, keepdims=True)
+    tmp = np.exp(x - x_max)
+    s = np.sum(tmp, axis=axis, keepdims=True)
+    return tmp / s

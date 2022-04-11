@@ -9,3 +9,6 @@ transformers==4.18.0
 pandas
 python-box
 more-itertools
+onnx
+onnxruntime
+onnxruntime-tools
