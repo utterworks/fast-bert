@@ -87,7 +87,9 @@ class Learner(object):
         ]
 
         if optimizer_type == "lamb":
-            optimizer = Lamb(optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon)
+            optimizer = Lamb(
+                optimizer_grouped_parameters, weight_decay=0.1, lr=lr, eps=1e-12
+            )
         elif optimizer_type == "adamw":
             optimizer = AdamW(
                 optimizer_grouped_parameters, lr=lr, eps=self.adam_epsilon
