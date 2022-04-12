@@ -1,5 +1,6 @@
 import os
 import torch
+from pathlib import Path
 from .data_cls import BertDataBunch
 from .data_ner import BertNERDataBunch
 from .learner_cls import BertLearner
@@ -122,7 +123,7 @@ class BertOnnxClassificationPredictor(object):
         with open(label_path / "labels.csv", "r") as f:
             self.labels = f.read().split("\n")
 
-        self.model = load_model(self.model_path / model_name)
+        self.model = load_model(Path(self.model_path) / model_name)
 
     def predict(self, text, verbose=False):
         # Inputs are provided through numpy array
