@@ -1,10 +1,5 @@
-import os
 import torch
 from pathlib import Path
-from .data_cls import BertDataBunch
-from .data_ner import BertNERDataBunch
-from .learner_cls import BertLearner
-from .learner_ner import BertNERLearner
 
 from .onnx_helper import load_model
 
@@ -50,6 +45,9 @@ class BertClassificationPredictor(object):
         self.learner = self.get_learner()
 
     def get_learner(self):
+        from .learner_cls import BertLearner
+        from .data_cls import BertDataBunch
+
         databunch = BertDataBunch(
             self.label_path,
             self.label_path,
@@ -166,6 +164,9 @@ class BertNERPredictor(object):
         self.learner = self.get_learner()
 
     def get_learner(self):
+        from .data_ner import BertNERDataBunch
+        from .learner_ner import BertNERLearner
+
         databunch = BertNERDataBunch(
             self.label_path,
             self.tokenizer,
