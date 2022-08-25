@@ -147,7 +147,7 @@ class BertNERLearner(Learner):
             overwrite_output_dir=True,
             do_train=True,
             do_eval=True,
-            evaluate_during_training=True,
+            evaluation_strategy="epoch",
             per_device_train_batch_size=data.batch_size_per_gpu,
             per_device_eval_batch_size=data.batch_size_per_gpu * 2,
             gradient_accumulation_steps=grad_accumulation_steps,
@@ -247,7 +247,7 @@ class BertNERLearner(Learner):
         self.get_trainer().save_model(path)
 
         # save the tokenizer
-        if self.get_trainer().is_world_master():
+        if self.get_trainer().is_world_process_zero():
             self.data.tokenizer.save_pretrained(path)
 
     def get_trainer(self):
