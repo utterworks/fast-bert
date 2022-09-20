@@ -148,6 +148,7 @@ class BertNERLearner(Learner):
             do_train=True,
             do_eval=True,
             evaluation_strategy="epoch",
+            logging_strategy="epoch",
             per_device_train_batch_size=data.batch_size_per_gpu,
             per_device_eval_batch_size=data.batch_size_per_gpu * 2,
             gradient_accumulation_steps=grad_accumulation_steps,
