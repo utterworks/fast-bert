@@ -1,4 +1,5 @@
 import os
+import logging
 import torch
 import numpy as np
 from .data_ner import BertNERDataBunch
@@ -184,6 +185,72 @@ class BertNERLearner(Learner):
 
         result = self.get_trainer().evaluate()
         return result
+
+    ### Return Predictions ###
+    def predict_batch(self, texts=None, group=True, exclude_entities=["O"], return_metrics=True, verbose=True):
+
+        if verbose:
+            if self.logger is None:
+                self.logger = logging.getLogger(__name__)
+        if texts:
+            if verbose:
+                self.logger.info("---PROGRESS-STATUS---: Tokenizing input texts...")
+            dl = self.data.get_dl_from_texts(texts)
+            if verbose:
+                self.logger.info("---PROGRESS-STATUS---: Tokenizing input texts...DONE")
+        elif self.data.test_dl:
+            dl = self.data.test_dl
+        else:
+            dl = self.data.val_dl
+
+        label_list = self.data.labels
+        tokenizer = self.data.tokenizer
+        results = self.get_trainer().predict(test_dataset=dl.dataset)
+        outputs = torch.Tensor(results.predictions)
+        outputs = outputs.softmax(dim=2)
+        predictions = torch.argmax(outputs, dim=2)
+
+        preds = []
+        for index, prediction in enumerate(predictions):
+            text = tokenizer.decode(dl.dataset[index].input_ids, skip_special_tokens=True)
+            tokens = tokenizer.tokenize(tokenizer.decode(tokenizer.encode(text)))
+
+            processed_pred = [
+                (token, label_list[pred], out[pred])
+                for token, out, pred in zip(
+                    tokens, outputs[index].tolist(), prediction.tolist()
+                )
+            ][1:-1]
+
+            processed_pred = [
+                {
+                    "index": index,
+                    "word": pred[0],
+                    "entity": pred[1],
+                    "score": pred[2],
+                }
+                for index, pred in enumerate(processed_pred)
+            ]
+            if group is True:
+                processed_pred = group_entities(processed_pred)
+
+            out_preds = []
+            for pred in processed_pred:
+                if pred["entity"] not in exclude_entities:
+                    try:
+                        pred["entity"] = pred["entity"].split("-")[1]
+                    except Exception:
+                        pass
+
+                    out_preds.append(pred)
+
+            preds.append(out_preds)
+        out_res = {
+            "predictions": preds,
+        }
+        if return_metrics:
+            out_res["metrics"] = results.metrics
+        return out_res
 
     def predict(self, text, group=True, exclude_entities=["O"]):
         if exclude_entities is None:
