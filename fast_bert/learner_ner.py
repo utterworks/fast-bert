@@ -193,7 +193,7 @@ class BertNERLearner(Learner):
             if self.logger is None:
                 self.logger = logging.getLogger(__name__)
         
-        elif self.data.test_dl:
+        if self.data.test_dl:
             dl = self.data.test_dl
         else:
             dl = self.data.val_dl
@@ -239,7 +239,7 @@ class BertNERLearner(Learner):
 
                     out_preds.append(pred)
 
-            preds.append(out_preds)
+            preds.append({"text": text, "labels": out_preds})
         out_res = {
             "predictions": preds,
         }
