@@ -187,17 +187,12 @@ class BertNERLearner(Learner):
         return result
 
     ### Return Predictions ###
-    def predict_batch(self, texts=None, group=True, exclude_entities=["O"], return_metrics=True, verbose=True):
+    def predict_batch(self, group=True, exclude_entities=["O"], return_metrics=True, verbose=True):
 
         if verbose:
             if self.logger is None:
                 self.logger = logging.getLogger(__name__)
-        if texts:
-            if verbose:
-                self.logger.info("---PROGRESS-STATUS---: Tokenizing input texts...")
-            dl = self.data.get_dl_from_texts(texts)
-            if verbose:
-                self.logger.info("---PROGRESS-STATUS---: Tokenizing input texts...DONE")
+        
         elif self.data.test_dl:
             dl = self.data.test_dl
         else:

@@ -79,6 +79,7 @@ class NerDataset(Dataset):
         tokenizer,
         labels: List[str],
         model_type: str,
+        texts=None,
         max_seq_length: Optional[int] = None,
         overwrite_cache=False,
         mode: Split = Split.train,
@@ -187,6 +188,7 @@ class BertNERDataBunch(object):
         custom_sampler=None,
         train_size=0.8,
         random_state=None,
+        test_file_name=None
     ):
         DATA_PATH = Path(data_dir)
 
@@ -202,6 +204,16 @@ class BertNERDataBunch(object):
         train, val = train_test_split(
             lines, train_size=train_size, random_state=random_state
         )
+
+        if test_file_name is not None:
+            try:
+                with open(DATA_PATH / test_file_name, "r") as f:
+                    test_lines = f.readlines()
+                    modified_test = flatten_all(convert_data(test_lines))
+                    json_to_text(modified_test, str(DATA_PATH / "test.txt"))
+            except FileNotFoundError:
+                logger.info("Test file not found, skipping")
+                test_lines = None
 
         modified_train = convert_data(train)
         modified_val = convert_data(val)
@@ -238,6 +250,7 @@ class BertNERDataBunch(object):
         tokenizer,
         train_file="train.txt",
         val_file="val.txt",
+        test_file="test.txt",
         label_file="labels.txt",
         batch_size_per_gpu=16,
         max_seq_length=512,
@@ -322,6 +335,28 @@ class BertNERDataBunch(object):
             self.val_dl = DataLoader(
                 val_dataset, sampler=val_sampler, batch_size=self.val_batch_size
             )
+
+        try:
+            if test_file:
+                test_dataset = NerDataset(
+                    data_dir=data_dir,
+                    file_name=test_file,
+                    tokenizer=tokenizer,
+                    labels=self.labels,
+                    model_type=self.model_type,
+                    max_seq_length=max_seq_length,
+                    overwrite_cache=clear_cache,
+                    mode=Split.test,
+                )
+
+                self.test_batch_size = self.batch_size_per_gpu * 2 * max(1, self.n_gpu)
+                test_sampler = SequentialSampler(test_dataset)
+                self.test_dl = DataLoader(
+                    test_dataset, sampler=test_sampler, batch_size=self.test_batch_size
+                )
+        except FileNotFoundError:
+            self.logger.info("Test file not found, skipping")
+            self.test_dl = None
 
 
 def convert_examples_to_features(
