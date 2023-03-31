@@ -55,7 +55,7 @@ RUN pip --no-cache-dir install \
     pathlib \
     gunicorn \
     scipy \
-    sklearn \
+    scikit-learn \
     pandas \
     fastprogress \
     python-box \

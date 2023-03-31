@@ -2,10 +2,10 @@ matplotlib
 pytorch-lamb
 tensorboardX
 fastprogress
-sklearn
+scikit-learn
 spacy
 seqeval
-transformers==4.18.0
+transformers==4.18.*
 pandas
 python-box
 more-itertools

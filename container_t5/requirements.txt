@@ -3,7 +3,7 @@ pathlib
 gunicorn 
 gevent 
 scipy 
-sklearn 
+scikit-learn 
 pandas 
 fastprogress 
 python-box 
