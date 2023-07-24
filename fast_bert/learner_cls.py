@@ -166,12 +166,13 @@ def load_model(
         )
     else:
         if finetuned_wgts_path:
+            finetuned_path = str(finetuned_wgts_path).replace("/pytorch_model.bin", "")
             config = AutoConfig.from_pretrained(
-                str(finetuned_wgts_path), num_labels=len(dataBunch.labels)
+                str(finetuned_path), num_labels=len(dataBunch.labels)
             )
 
             model = AutoModelForSequenceClassification.from_pretrained(
-                str(finetuned_wgts_path), config=config
+                str(finetuned_path), config=config
             )
         else:
             config = AutoConfig.from_pretrained(
