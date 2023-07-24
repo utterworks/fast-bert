@@ -165,12 +165,22 @@ def load_model(
             str(pretrained_path), config=config, state_dict=model_state_dict
         )
     else:
-        config = AutoConfig.from_pretrained(
-            str(pretrained_path), num_labels=len(dataBunch.labels)
-        )
-        model = AutoModelForSequenceClassification.from_pretrained(
-            str(pretrained_path), config=config, state_dict=model_state_dict
-        )
+        if finetuned_wgts_path:
+            config = AutoConfig.from_pretrained(
+                str(finetuned_wgts_path), num_labels=len(dataBunch.labels)
+            )
+
+            model = AutoModelForSequenceClassification.from_pretrained(
+                str(finetuned_wgts_path), config=config
+            )
+        else:
+            config = AutoConfig.from_pretrained(
+                str(pretrained_path), num_labels=len(dataBunch.labels)
+            )
+            
+            model = AutoModelForSequenceClassification.from_pretrained(
+                str(pretrained_path), config=config
+            )
 
     return model.to(device)
 
