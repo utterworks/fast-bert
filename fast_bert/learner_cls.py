@@ -527,6 +527,7 @@ class BertLearner(Learner):
                     )
 
                     if self.logging_steps > 0 and global_step % self.logging_steps == 0:
+                        self.state.loss = (tr_loss - logging_loss) / self.logging_steps
                         if validate:
                             # evaluate model
                             results = self.validate()
@@ -564,6 +565,8 @@ class BertLearner(Learner):
                         logging_loss = tr_loss
 
             # Evaluate the model against validation set after every epoch
+            self.state.learning_rate = self.lr_scheduler.get_lr()[0]
+            self.state.loss = epoch_loss / epoch_step
             if validate:
                 results = self.validate()
                 for key, value in results.items():
@@ -573,8 +576,6 @@ class BertLearner(Learner):
                 results_val.append(results)
 
             self.state.epoch = epoch + 1
-            self.state.learning_rate = self.lr_scheduler.get_lr()[0]
-            self.state.loss = epoch_loss / epoch_step
             self.control = self.callback_handler.on_epoch_end(
                 self.training_arguments, self.state, self.control
             )
