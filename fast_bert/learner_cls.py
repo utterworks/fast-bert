@@ -522,7 +522,6 @@ class BertLearner(Learner):
                     self.state.epoch = epoch + (step + 1) / len(train_dataloader)
 
                     self.state.learning_rate = self.lr_scheduler.get_lr()[0]
-                    self.state.loss = (tr_loss - logging_loss) / self.logging_steps
                     self.control = self.callback_handler.on_step_end(
                         self.training_arguments, self.state, self.control
                     )
