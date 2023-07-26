@@ -2,12 +2,12 @@ import os
 import copy
 import logging
 from packaging import version
-from .data_cls import BertDataBunch, InputExample, InputFeatures
+from .data_cls import BertDataBunch
 from tqdm.autonotebook import tqdm
 import matplotlib.pyplot as plt
 from .learner_util import Learner
 from torch import nn
-from typing import List
+from typing import List, Optional
 
 from .modeling import (
     BertForMultiLabelSequenceClassification,
@@ -17,10 +17,9 @@ from .modeling import (
     CamembertForMultiLabelSequenceClassification,
     AlbertForMultiLabelSequenceClassification,
     ElectraForMultiLabelSequenceClassification,
-    FlaubertForMultiLabelSequenceClassification
+    FlaubertForMultiLabelSequenceClassification,
 )
 
-from .bert_layers import BertLayerNorm
 from fastprogress.fastprogress import master_bar, progress_bar
 import torch
 import pandas as pd
@@ -64,9 +63,21 @@ from transformers import (
     FlaubertTokenizer,
 )
 
-from transformers import AutoModelForSequenceClassification, AutoConfig
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoConfig,
+    TrainingArguments,
+)
+from transformers.trainer_callback import (
+    TrainerCallback,
+    TrainerControl,
+    TrainerState,
+    CallbackHandler,
+    DefaultFlowCallback,
+)
 
 PYTORCH_VERSION = version.parse(torch.__version__)
+DEFAULT_CALLBACKS = [DefaultFlowCallback]
 
 MODEL_CLASSES = {
     "bert": (
@@ -115,9 +126,12 @@ MODEL_CLASSES = {
         (ElectraForSequenceClassification, ElectraForMultiLabelSequenceClassification),
         ElectraTokenizer,
     ),
-    "flaubert": (    
-        FlaubertConfig,      
-        (FlaubertForSequenceClassification, FlaubertForMultiLabelSequenceClassification),
+    "flaubert": (
+        FlaubertConfig,
+        (
+            FlaubertForSequenceClassification,
+            FlaubertForMultiLabelSequenceClassification,
+        ),
         FlaubertTokenizer,
     ),
 }
@@ -137,7 +151,6 @@ def load_model(
     pos_weight,
     weight,
 ):
-
     model_type = dataBunch.model_type
     model_state_dict = None
 
@@ -154,7 +167,9 @@ def load_model(
     if multi_label is True:
         config_class, model_class, _ = MODEL_CLASSES[model_type]
 
-        model_class[1].pos_weight = pos_weight if pos_weight is not None else dataBunch.pos_weight
+        model_class[1].pos_weight = (
+            pos_weight if pos_weight is not None else dataBunch.pos_weight
+        )
         model_class[1].weight = weight if weight is not None else dataBunch.weight
 
         config = config_class.from_pretrained(
@@ -178,7 +193,7 @@ def load_model(
             config = AutoConfig.from_pretrained(
                 str(pretrained_path), num_labels=len(dataBunch.labels)
             )
-            
+
             model = AutoModelForSequenceClassification.from_pretrained(
                 str(pretrained_path), config=config
             )
@@ -209,6 +224,10 @@ class BertLearner(Learner):
         freeze_transformer_layers=False,
         pos_weight=None,
         weight=None,
+        callbacks: Optional[List[TrainerCallback]] = None,
+        learning_rate: float = 4e-5,
+        optimizer_type: str = "lamb",
+        epochs: int = 6,
     ):
         if is_fp16 and (IS_AMP_AVAILABLE is False):
             logger.debug("Apex not installed. switching off FP16 training")
@@ -243,6 +262,10 @@ class BertLearner(Learner):
             adam_epsilon,
             logging_steps,
             freeze_transformer_layers,
+            callbacks,
+            learning_rate,
+            optimizer_type,
+            epochs,
         )
 
     def __init__(
@@ -265,8 +288,11 @@ class BertLearner(Learner):
         adam_epsilon=1e-8,
         logging_steps=100,
         freeze_transformer_layers=False,
+        callbacks: Optional[List[TrainerCallback]] = None,
+        learning_rate: float = 4e-5,
+        optimizer_type: str = "lamb",
+        epochs: int = 6,
     ):
-
         super(BertLearner, self).__init__(
             data,
             model,
@@ -301,11 +327,77 @@ class BertLearner(Learner):
                 if name.startswith(data.model_type):
                     param.requires_grad = False
 
+        # Optimizer
+        self.optimizer_type = optimizer_type
+        self.learning_rate = learning_rate
+        self.optimizer = self.get_optimizer(
+            self.learning_rate, optimizer_type=self.optimizer_type
+        )
+
+        train_dataloader = self.data.train_dl
+        if self.max_steps > 0:
+            t_total = self.max_steps
+            self.epochs = (
+                self.max_steps // len(train_dataloader) // self.grad_accumulation_steps
+                + 1
+            )
+        else:
+            t_total = len(train_dataloader) // self.grad_accumulation_steps * epochs
+
+        self.lr_scheduler = self.get_scheduler(self.optimizer, t_total=t_total)
+        self.epochs = epochs
+
+        # Callbacks
+        callbacks = (
+            DEFAULT_CALLBACKS if callbacks is None else DEFAULT_CALLBACKS + callbacks
+        )
+
+        self.callback_handler = CallbackHandler(
+            callbacks=callbacks,
+            model=self.model,
+            tokenizer=self.data.tokenizer,
+            optimizer=self.optimizer,
+            lr_scheduler=self.lr_scheduler,
+        )
+
+        self.state = TrainerState()
+        self.control = TrainerControl()
+
+        if self.output_dir:
+            tensorboard_dir = self.output_dir / "tensorboard"
+            tensorboard_dir.mkdir(exist_ok=True)
+        else:
+            tensorboard_dir = None
+
+        self.training_arguments = TrainingArguments(
+            str(output_dir),
+            overwrite_output_dir=True,
+            do_train=True,
+            do_eval=True,
+            evaluation_strategy="epoch",
+            logging_strategy="epoch",
+            per_device_train_batch_size=data.batch_size_per_gpu,
+            per_device_eval_batch_size=data.batch_size_per_gpu * 2,
+            gradient_accumulation_steps=grad_accumulation_steps,
+            adam_epsilon=adam_epsilon,
+            max_grad_norm=max_grad_norm,
+            warmup_steps=warmup_steps,
+            logging_dir=str(tensorboard_dir),
+            logging_steps=logging_steps,
+            fp16=is_fp16,
+            fp16_opt_level=fp16_opt_level,
+            save_steps=0,
+        )
+
+        self.control = self.callback_handler.on_init_end(
+            self.training_arguments, self.state, self.control
+        )
+
     ### Train the model ###
     def fit(
         self,
-        epochs,
-        lr,
+        epochs=None,
+        lr=None,
         validate=True,
         return_results=False,
         schedule_type="warmup_cosine",
@@ -315,6 +407,11 @@ class BertLearner(Learner):
         tensorboard_dir = self.output_dir / "tensorboard"
         tensorboard_dir.mkdir(exist_ok=True)
 
+        if epochs is None:
+            epochs = self.epochs
+
+        if lr is None:
+            lr = self.learning_rate
         # Train the model
         tb_writer = SummaryWriter(tensorboard_dir)
 
@@ -329,20 +426,26 @@ class BertLearner(Learner):
             t_total = len(train_dataloader) // self.grad_accumulation_steps * epochs
 
         # Prepare optimiser
-        optimizer = self.get_optimizer(lr, optimizer_type=optimizer_type)
+        if (
+            self.optimizer_type != optimizer_type
+            or self.learning_rate != lr
+            or self.epochs != epochs
+        ):
+            self.optimizer = self.get_optimizer(lr, optimizer_type=optimizer_type)
+            self.lr_scheduler = self.get_scheduler(
+                self.optimizer, t_total=t_total, schedule_type=schedule_type
+            )
+            self.callback_handler.optimizer = self.optimizer
+            self.callback_handler.lr_scheduler = self.lr_scheduler
 
         # get the base model if its already wrapped around DataParallel
         if hasattr(self.model, "module"):
             self.model = self.model.module
 
-        # Get scheduler
-        scheduler = self.get_scheduler(
-            optimizer, t_total=t_total, schedule_type=schedule_type
-        )
-
         # Parallelize the model architecture
         if self.multi_gpu is True:
             self.model = torch.nn.DataParallel(self.model)
+            self.callback_handler.model = self.model
 
         # Start Training
         self.logger.info("***** Running training *****")
@@ -357,16 +460,40 @@ class BertLearner(Learner):
         )
         self.logger.info("  Total optimization steps = %d", t_total)
 
+        # Update the references
+        self.callback_handler.model = self.model
+        self.callback_handler.optimizer = self.optimizer
+        self.callback_handler.lr_scheduler = self.lr_scheduler
+        self.callback_handler.train_dataloader = train_dataloader
+        self.state.max_steps = self.max_steps
+        self.state.num_train_epochs = epochs
+
         global_step = 0
         epoch_step = 0
+        self.state.epoch = 0
         tr_loss, logging_loss, epoch_loss = 0.0, 0.0, 0.0
         self.model.zero_grad()
+
+        self.control = self.callback_handler.on_train_begin(
+            self.training_arguments, self.state, self.control
+        )
         pbar = master_bar(range(epochs))
 
         for epoch in pbar:
             epoch_step = 0
             epoch_loss = 0.0
+
+            # epoch begin callback
+            self.control = self.callback_handler.on_epoch_begin(
+                self.training_arguments, self.state, self.control
+            )
+
             for step, batch in enumerate(progress_bar(train_dataloader, parent=pbar)):
+                if step % self.grad_accumulation_steps == 0:
+                    self.control = self.callback_handler.on_step_begin(
+                        self.training_arguments, self.state, self.control
+                    )
+
                 # Run training step and get loss
                 loss = self.training_step(batch)
 
@@ -379,18 +506,26 @@ class BertLearner(Learner):
                     )
                     if self.is_fp16:
                         # AMP: gradients need unscaling
-                        self.scaler.unscale_(optimizer)
+                        self.scaler.unscale_(self.optimizer)
 
                     if self.is_fp16:
-                        self.scaler.step(optimizer)
+                        self.scaler.step(self.optimizer)
                         self.scaler.update()
                     else:
-                        optimizer.step()
-                    scheduler.step()
+                        self.optimizer.step()
+                    self.lr_scheduler.step()
 
                     self.model.zero_grad()
                     global_step += 1
                     epoch_step += 1
+                    self.state.global_step = global_step
+                    self.state.epoch = epoch + (step + 1) / len(train_dataloader)
+
+                    self.state.learning_rate = self.lr_scheduler.get_lr()[0]
+                    self.state.loss = (tr_loss - logging_loss) / self.logging_steps
+                    self.control = self.callback_handler.on_step_end(
+                        self.training_arguments, self.state, self.control
+                    )
 
                     if self.logging_steps > 0 and global_step % self.logging_steps == 0:
                         if validate:
@@ -409,7 +544,7 @@ class BertLearner(Learner):
                         # Log metrics
                         self.logger.info(
                             "lr after step {}: {}".format(
-                                global_step, scheduler.get_lr()[0]
+                                global_step, self.lr_scheduler.get_lr()[0]
                             )
                         )
                         self.logger.info(
@@ -418,7 +553,9 @@ class BertLearner(Learner):
                                 (tr_loss - logging_loss) / self.logging_steps,
                             )
                         )
-                        tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar(
+                            "lr", self.lr_scheduler.get_lr()[0], global_step
+                        )
                         tb_writer.add_scalar(
                             "loss",
                             (tr_loss - logging_loss) / self.logging_steps,
@@ -436,9 +573,17 @@ class BertLearner(Learner):
                     )
                 results_val.append(results)
 
+            self.state.epoch = epoch + 1
+            self.state.learning_rate = self.lr_scheduler.get_lr()[0]
+            self.state.loss = epoch_loss / epoch_step
+            self.control = self.callback_handler.on_epoch_end(
+                self.training_arguments, self.state, self.control
+            )
             # Log metrics
             self.logger.info(
-                "lr after epoch {}: {}".format((epoch + 1), scheduler.get_lr()[0])
+                "lr after epoch {}: {}".format(
+                    (epoch + 1), self.lr_scheduler.get_lr()[0]
+                )
             )
             self.logger.info(
                 "train_loss after epoch {}: {}".format(
@@ -448,6 +593,9 @@ class BertLearner(Learner):
             self.logger.info("\n")
 
         tb_writer.close()
+        self.control = self.callback_handler.on_train_end(
+            self.training_arguments, self.state, self.control
+        )
 
         if return_results:
             return global_step, tr_loss / global_step, results_val
@@ -551,11 +699,12 @@ class BertLearner(Learner):
 
         eval_loss = eval_loss / nb_eval_steps
 
-        results = {"loss": eval_loss}
+        results = {"loss": eval_loss, "return_preds": return_preds}
 
         if return_preds:
             results["y_preds"] = np.argmax(all_logits.detach().cpu().numpy(), axis=1)
             results["y_true"] = all_labels.detach().cpu().numpy()
+            results["labels"] = self.data.labels
 
         if loss_only is False:
             # Evaluation metrics
@@ -565,11 +714,14 @@ class BertLearner(Learner):
                 )
             results.update(validation_scores)
 
+        self.control = self.callback_handler.on_evaluate(
+            self.training_arguments, self.state, self.control, metrics=results
+        )
+
         return results
 
     ### Return Predictions ###
     def predict_batch(self, texts=None, verbose=True):
-
         if verbose:
             if self.logger is None:
                 self.logger = logging.getLogger(__name__)
@@ -621,9 +773,17 @@ class BertLearner(Learner):
         result_df = pd.DataFrame(all_logits, columns=self.data.labels)
         results = result_df.to_dict(orient="records")
 
+        out_results = [
+            sorted(x.items(), key=lambda kv: kv[1], reverse=True) for x in results
+        ]
+
+        self.control = self.callback_handler.on_predict(
+            self.training_arguments, self.state, self.control, results=out_results
+        )
+
         if verbose:
             self.logger.info("---PROGRESS-STATUS---: Predicting batch...DONE")
-        return [sorted(x.items(), key=lambda kv: kv[1], reverse=True) for x in results]
+        return out_results
 
     # Begin code for LR Finder
     # Courtesy https://github.com/davidtvs/pytorch-lr-finder
