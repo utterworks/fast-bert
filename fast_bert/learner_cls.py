@@ -777,9 +777,9 @@ class BertLearner(Learner):
             sorted(x.items(), key=lambda kv: kv[1], reverse=True) for x in results
         ]
 
-        self.control = self.callback_handler.on_predict(
-            self.training_arguments, self.state, self.control, results=out_results
-        )
+        # self.control = self.callback_handler.on_predict(
+        #     self.training_arguments, self.state, self.control, results=out_results
+        # )
 
         if verbose:
             self.logger.info("---PROGRESS-STATUS---: Predicting batch...DONE")
