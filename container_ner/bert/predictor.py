@@ -9,7 +9,7 @@ import flask
 
 import torch
 
-from fast_bert.prediction import BertNERPredictor
+from fast_bert.prediction_ner import BertNERPredictor
 
 from fast_bert.utils.spellcheck import BingSpellCheck
 from pathlib import Path
