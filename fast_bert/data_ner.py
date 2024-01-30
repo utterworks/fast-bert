@@ -1,4 +1,4 @@
-import pandas as pd
+from sklearn.model_selection import train_test_split
 import json
 import logging
 import os
@@ -12,7 +12,7 @@ import pickle
 from filelock import FileLock
 import re
 import shutil
-from sklearn.model_selection import train_test_split
+
 
 from torch.utils.data import (
     Dataset,

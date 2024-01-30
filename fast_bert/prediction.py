@@ -134,7 +134,7 @@ class BertOnnxClassificationPredictor(object):
         softmax_preds = softmax(outputs[0])
         preds = list(zip(self.labels, softmax_preds[0]))
         return sorted(preds, key=lambda x: x[1], reverse=True)
-
+    
 
 class BertNERPredictor(object):
     def __init__(

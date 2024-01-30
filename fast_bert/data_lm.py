@@ -1,3 +1,4 @@
+from sklearn.model_selection import train_test_split
 import re
 import html
 import logging
@@ -11,7 +12,6 @@ import shutil
 import itertools
 import more_itertools
 
-from sklearn.model_selection import train_test_split
 
 from torch.utils.data import (
     TensorDataset,

@@ -24,7 +24,6 @@ from fastprogress.fastprogress import master_bar, progress_bar
 import torch
 import pandas as pd
 import numpy as np
-from sklearn.metrics import roc_curve, auc
 
 from pathlib import Path
 

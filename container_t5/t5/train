@@ -17,7 +17,6 @@ import random
 import re
 from itertools import chain
 from string import punctuation
-from sklearn.model_selection import train_test_split
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
