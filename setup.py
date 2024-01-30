@@ -8,7 +8,7 @@ with open("requirements.txt") as f:
     install_requires = f.read().strip().split("\n")
 
 # get version from VERSION.txt 
-with open("VERSION") as f:
+with open("VERSION.txt") as f:
     version = f.read().strip()
 
 setup(
