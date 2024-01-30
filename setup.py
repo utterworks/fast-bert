@@ -7,9 +7,14 @@ import subprocess
 with open("requirements.txt") as f:
     install_requires = f.read().strip().split("\n")
 
+# get version from VERSION.txt 
+with open("VERSION") as f:
+    version = f.read().strip()
+
 setup(
     name="fast_bert",
-    version="2.0.18",
+    # get version from VERSION file
+    version=version,
     description="AI Library using BERT",
     author="Kaushal Trivedi",
     author_email="kaushaltrivedi@me.com",
