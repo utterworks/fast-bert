@@ -133,3 +133,10 @@ class BertOnnxClassificationPredictor(object):
         preds = list(zip(self.labels, softmax_preds[0]))
         return sorted(preds, key=lambda x: x[1], reverse=True)
     
+
+
+def softmax(x: np.ndarray, axis: int = -1) -> np.ndarray:
+    x_max = np.max(x, axis=axis, keepdims=True)
+    tmp = np.exp(x - x_max)
+    s = np.sum(tmp, axis=axis, keepdims=True)
+    return tmp / s
