@@ -228,13 +228,19 @@ class TextProcessor(DataProcessor):
     ):
 
         if size == -1:
-            data_df = pd.read_csv(os.path.join(self.data_dir, filename))
+            if ".xlsx" in filename:
+                data_df = pd.read_excel(os.path.join(self.data_dir, filename))
+            else:
+                data_df = pd.read_csv(os.path.join(self.data_dir, filename))
 
             return self._create_examples(
                 data_df, "train", text_col=text_col, label_col=label_col
             )
         else:
-            data_df = pd.read_csv(os.path.join(self.data_dir, filename))
+            if ".xlsx" in filename:
+                data_df = pd.read_excel(os.path.join(self.data_dir, filename))
+            else:
+                data_df = pd.read_csv(os.path.join(self.data_dir, filename))
             #             data_df['comment_text'] = data_df['comment_text'].apply(cleanHtml)
             return self._create_examples(
                 data_df.sample(size), "train", text_col=text_col, label_col=label_col
@@ -245,12 +251,18 @@ class TextProcessor(DataProcessor):
     ):
 
         if size == -1:
-            data_df = pd.read_csv(os.path.join(self.data_dir, filename))
+            if ".xlsx" in filename:
+                data_df = pd.read_excel(os.path.join(self.data_dir, filename))
+            else:
+                data_df = pd.read_csv(os.path.join(self.data_dir, filename))
             return self._create_examples(
                 data_df, "dev", text_col=text_col, label_col=label_col
             )
         else:
-            data_df = pd.read_csv(os.path.join(self.data_dir, filename))
+            if ".xlsx" in filename:
+                data_df = pd.read_excel(os.path.join(self.data_dir, filename))
+            else:
+                data_df = pd.read_csv(os.path.join(self.data_dir, filename))
             return self._create_examples(
                 data_df.sample(size), "dev", text_col=text_col, label_col=label_col
             )
@@ -258,7 +270,10 @@ class TextProcessor(DataProcessor):
     def get_test_examples(
         self, filename="val.csv", text_col="text", label_col="label", size=-1
     ):
-        data_df = pd.read_csv(os.path.join(self.data_dir, filename))
+        if ".xlsx" in filename:
+            data_df = pd.read_excel(os.path.join(self.data_dir, filename))
+        else:
+            data_df = pd.read_csv(os.path.join(self.data_dir, filename))
         #         data_df['comment_text'] = data_df['comment_text'].apply(cleanHtml)
         if size == -1:
             return self._create_examples(
@@ -272,11 +287,18 @@ class TextProcessor(DataProcessor):
     def get_labels(self, filename="labels.csv"):
         """See base class."""
         if self.labels is None:
-            self.labels = list(
-                pd.read_csv(os.path.join(self.label_dir, filename), header=None)[0]
-                .astype("str")
-                .values
-            )
+            if ".xlsx" in filename:
+                self.labels = list(
+                    pd.read_excel(os.path.join(self.label_dir, filename), header=None)[0]
+                    .astype("str")
+                    .values
+                )
+            else:
+                self.labels = list(
+                    pd.read_csv(os.path.join(self.label_dir, filename), header=None)[0]
+                    .astype("str")
+                    .values
+                )
         return self.labels
 
     def _create_examples(self, df, set_type, text_col, label_col):
@@ -345,7 +367,10 @@ class LRFinderDataset(Dataset):
         self.text_col = text_col
         self.label_col = label_col
 
-        self.data = pd.read_csv(os.path.join(data_dir, filename))
+        if ".xlsx" in filename:
+            self.data = pd.read_excel(os.path.join(data_dir, filename))
+        else:
+            self.data = pd.read_csv(os.path.join(data_dir, filename))
 
     def __getitem__(self, idx):
         return self.data.loc[idx, self.text_col], self.data.loc[idx, self.label_col]
