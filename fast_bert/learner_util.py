@@ -128,6 +128,8 @@ class Learner(object):
 
         if not path:
             path = self.output_dir / "model_out"
+        else:
+            path = Path(path)
 
         path.mkdir(exist_ok=True)
 
