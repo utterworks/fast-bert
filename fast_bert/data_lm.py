@@ -21,7 +21,7 @@ from torch.utils.data import (
     Dataset,
 )
 from torch.utils.data.distributed import DistributedSampler
-import spacy
+
 from tqdm import tqdm, trange
 from fastprogress.fastprogress import master_bar, progress_bar
 
@@ -72,8 +72,6 @@ MODEL_CLASSES = {
 
 
 def create_corpus(text_list, target_path, logger=None):
-
-    #     nlp = spacy.load("en_core_web_sm", disable=["tagger", "ner", "textcat"])
 
     with open(target_path, "w") as f:
         #  Split sentences for each document
@@ -317,7 +315,7 @@ class BertLMDataBunch(object):
     # Mask tokens
 
     def mask_tokens(self, inputs, mlm_probability=0.15):
-        """ Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original. """
+        """Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original."""
         labels = inputs.clone()
         # We sample a few tokens in each sequence for masked-LM training (with probability mlm_probability defaults to 0.15 in Bert/RoBERTa)
 
