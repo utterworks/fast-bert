@@ -8,5 +8,5 @@ pandas
 fastprogress 
 python-box 
 tensorboardX
-transformers==2.11.0
+transformers==4.30.0
 pytorch_lightning
